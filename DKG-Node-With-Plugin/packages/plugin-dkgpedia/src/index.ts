@@ -56,23 +56,173 @@ function validateRemoteOtnode(): void {
 
 /**
  * Helper function to extract clean value from SPARQL result
+ * @param preserveJsonEscapes - If true, preserves escape sequences (for JSON strings)
  */
-function extractValue(value: any): string {
+function extractValue(value: any, preserveJsonEscapes: boolean = false): string {
   if (!value) return "";
   if (typeof value === 'string') {
     // Remove quotes and type annotations (e.g., "value"^^type -> value)
-    let clean = value.replace(/^"|"$/g, '').replace(/\\"/g, '"');
+    let clean = value.replace(/^"|"$/g, '');
+    
     // Remove type annotation if present
     const typeMatch = clean.match(/^(.+?)\^\^.+$/);
     if (typeMatch && typeMatch[1]) {
       clean = typeMatch[1].replace(/^"|"$/g, '');
     }
+    
+    // For JSON strings, we need to be more careful with unescaping
+    if (preserveJsonEscapes) {
+      // Only unescape the outer layer of quotes that SPARQL added
+      // Don't touch escape sequences inside the JSON
+      clean = clean.replace(/\\"/g, '"');
+    } else {
+      // For regular strings, unescape everything
+      clean = clean.replace(/\\"/g, '"');
+      // Handle escaped newlines and other escape sequences
+      clean = clean.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t');
+    }
     return clean;
   }
   if (value.value) {
-    return extractValue(value.value);
+    return extractValue(value.value, preserveJsonEscapes);
   }
   return String(value);
+}
+
+/**
+ * Helper function to safely parse JSON strings from SPARQL results
+ * Handles various encoding issues that can occur when storing/retrieving JSON from DKG
+ */
+function safeJsonParse(jsonStr: string | null | undefined, fallback: any = null): any {
+  if (!jsonStr || typeof jsonStr !== 'string' || jsonStr.trim() === '') {
+    return fallback;
+  }
+
+  // If jsonStr is already an object, return it
+  if (typeof jsonStr === 'object') {
+    return jsonStr;
+  }
+
+  let cleaned = jsonStr.trim();
+  
+  // First, try to detect if this is a double-encoded JSON string
+  // (JSON string stored as a string in JSON-LD, then retrieved from SPARQL)
+  // It might look like: "{\"key\":\"value\"}" or '{"key":"value"}'
+  try {
+    // Check if it's wrapped in quotes (SPARQL returns strings quoted)
+    if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || 
+        (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+      // Try parsing the outer quotes to get the inner JSON string
+      const outerParsed = JSON.parse(cleaned);
+      if (typeof outerParsed === 'string') {
+        // It was double-encoded, now parse the inner JSON
+        return JSON.parse(outerParsed);
+      }
+      // It wasn't double-encoded, return what we got
+      return outerParsed;
+    }
+  } catch {
+    // Not double-encoded as a quoted string, continue with normal parsing
+  }
+
+  try {
+    // First, try direct parsing
+    return JSON.parse(cleaned);
+  } catch (e) {
+    // If that fails, try cleaning up the string
+    
+    try {
+      // Remove any leading/trailing quotes that might have been added
+      if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || 
+          (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+        cleaned = cleaned.slice(1, -1);
+      }
+      
+      // Handle double-encoded JSON (when JSON string is stored as a string in JSON-LD)
+      // Try to detect if it's double-encoded by attempting to parse it
+      try {
+        const firstParse = JSON.parse(cleaned);
+        if (typeof firstParse === 'string') {
+          // It was double-encoded, now parse the inner JSON
+          return JSON.parse(firstParse);
+        }
+        // It wasn't double-encoded, return what we got
+        return firstParse;
+      } catch {
+        // Not valid JSON, continue with extraction attempt
+      }
+      
+      // If we get here, the JSON might be corrupted or have extra characters
+      // Try to extract valid JSON from the string
+      return JSON.parse(cleaned);
+    } catch (e2) {
+      // Last resort: try to extract valid JSON from a corrupted string
+      // Look for the first { or [ and try to parse from there
+      try {
+        const firstBrace = cleaned.indexOf('{');
+        const firstBracket = cleaned.indexOf('[');
+        const startIndex = firstBrace >= 0 && (firstBracket < 0 || firstBrace < firstBracket) 
+          ? firstBrace 
+          : firstBracket >= 0 ? firstBracket : -1;
+        
+        if (startIndex >= 0) {
+          // Try to find matching closing brace/bracket
+          let depth = 0;
+          let inString = false;
+          let escapeNext = false;
+          let endIndex = -1;
+          
+          for (let i = startIndex; i < cleaned.length; i++) {
+            const char = cleaned[i];
+            
+            if (escapeNext) {
+              escapeNext = false;
+              continue;
+            }
+            
+            if (char === '\\') {
+              escapeNext = true;
+              continue;
+            }
+            
+            if (char === '"' && !escapeNext) {
+              inString = !inString;
+              continue;
+            }
+            
+            if (!inString) {
+              if (char === '{' || char === '[') {
+                depth++;
+              } else if (char === '}' || char === ']') {
+                depth--;
+                if (depth === 0) {
+                  endIndex = i + 1;
+                  break;
+                }
+              }
+            }
+          }
+          
+          if (endIndex > startIndex) {
+            const extracted = cleaned.substring(startIndex, endIndex);
+            return JSON.parse(extracted);
+          }
+        }
+      } catch (e3) {
+        // All parsing attempts failed
+      }
+      
+      // Log warning but don't throw - return fallback instead
+      // Only log if it's not an empty string or obviously invalid
+      if (jsonStr.length > 10) {
+        console.warn("Failed to parse JSON after all attempts. Returning fallback.");
+        console.warn("String length:", jsonStr.length);
+        console.warn("First 200 chars:", jsonStr.substring(0, 200));
+      }
+      
+      return fallback;
+    }
+  }
 }
 
 /**
@@ -120,7 +270,7 @@ function applyPaymentMiddleware(
  * 
  * Provides MCP tools and API routes for:
  * - Querying Community Notes from DKG
- * - Getting trust scores and analysis for topics
+ * - Getting analysis for topics
  * - Publishing Community Notes to DKG
  */
 export default defineDkgPlugin((ctx, mcp, api) => {
@@ -134,7 +284,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       title: "Get Community Note",
       description:
         "Retrieve a Community Note for a specific topic. " +
-        "Returns trust score, summary, and key information found.",
+        "Returns summary and key information found.",
       inputSchema: {
         topicId: z
           .string()
@@ -167,15 +317,14 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         }
         
         // Query DKG for Community Notes with this topic_id
-        // Using dkgpedia namespace to avoid conflicts with other data
-        const query = `
+          // Using dkgpedia namespace to avoid conflicts with other data
+          const query = `
           PREFIX schema: <https://schema.org/>
           PREFIX dkgpedia: <https://dkgpedia.org/schema/>
           
           SELECT * WHERE {
             ?asset a dkgpedia:CommunityNote .
             ?asset dkgpedia:topicId "${topicId}" .
-            ?asset dkgpedia:trustScore ?trustScore .
             OPTIONAL { ?asset dkgpedia:summary ?summary . }
             OPTIONAL { ?asset dkgpedia:name ?title . }
             OPTIONAL { ?asset dkgpedia:dateCreated ?createdAt . }
@@ -188,6 +337,19 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             OPTIONAL { ?asset dkgpedia:primarySource ?primarySource . }
             OPTIONAL { ?asset dkgpedia:secondarySource ?secondarySource . }
             OPTIONAL { ?asset dkgpedia:provenance ?provenance . }
+            OPTIONAL { ?asset dkgpedia:analysisResult ?analysisResult . }
+            OPTIONAL { ?asset dkgpedia:fetchResults ?fetchResults . }
+            OPTIONAL { ?asset dkgpedia:tripleResults ?tripleResults . }
+            OPTIONAL { ?asset dkgpedia:semanticDriftResults ?semanticDriftResults . }
+            OPTIONAL { ?asset dkgpedia:factCheckResults ?factCheckResults . }
+            OPTIONAL { ?asset dkgpedia:sentimentResults ?sentimentResults . }
+            OPTIONAL { ?asset dkgpedia:multimodalResults ?multimodalResults . }
+            OPTIONAL { ?asset dkgpedia:judgingResults ?judgingResults . }
+            OPTIONAL { ?asset dkgpedia:analysisId ?analysisId . }
+            OPTIONAL { ?asset dkgpedia:analysisStatus ?analysisStatus . }
+            OPTIONAL { ?asset dkgpedia:stepsCompleted ?stepsCompleted . }
+            OPTIONAL { ?asset dkgpedia:executionTimeSeconds ?executionTimeSeconds . }
+            OPTIONAL { ?asset dkgpedia:analysisTimestamp ?analysisTimestamp . }
           }
           ORDER BY DESC(?createdAt)
           LIMIT 1
@@ -269,42 +431,61 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         let categoryMetrics = null;
         let notableInstances = null;
         let provenance = null;
+        let analysisResult = null;
+        let fetchResults = null;
+        let tripleResults = null;
+        let semanticDriftResults = null;
+        let factCheckResults = null;
+        let sentimentResults = null;
+        let multimodalResults = null;
+        let judgingResults = null;
         
-        try {
-          const categoryMetricsStr = extractValue(note.categoryMetrics);
-          if (categoryMetricsStr) {
-            categoryMetrics = JSON.parse(categoryMetricsStr);
-          }
-        } catch (e) {
-          console.warn("Failed to parse categoryMetrics:", e);
-        }
+        // Parse JSON fields using safe parsing
+        // Use preserveJsonEscapes=true to avoid corrupting JSON escape sequences
+        const categoryMetricsStr = extractValue(note.categoryMetrics, true);
+        categoryMetrics = safeJsonParse(categoryMetricsStr, null);
         
-        try {
-          const notableInstancesStr = extractValue(note.notableInstances);
-          if (notableInstancesStr) {
-            notableInstances = JSON.parse(notableInstancesStr);
-          }
-        } catch (e) {
-          console.warn("Failed to parse notableInstances:", e);
-        }
+        const notableInstancesStr = extractValue(note.notableInstances, true);
+        notableInstances = safeJsonParse(notableInstancesStr, null);
         
-        try {
-          const provenanceStr = extractValue(note.provenance);
-          if (provenanceStr) {
-            provenance = JSON.parse(provenanceStr);
-          }
-        } catch (e) {
-          console.warn("Failed to parse provenance:", e);
+        const provenanceStr = extractValue(note.provenance, true);
+        provenance = safeJsonParse(provenanceStr, null);
+
+        // Parse full analysis result if available
+        const analysisResultStr = extractValue(note.analysisResult, true);
+        analysisResult = safeJsonParse(analysisResultStr, null);
+
+        // Parse individual result sections if full analysisResult is not available
+        if (!analysisResult) {
+          const fetchStr = extractValue(note.fetchResults, true);
+          fetchResults = safeJsonParse(fetchStr, null);
+          
+          const tripleStr = extractValue(note.tripleResults, true);
+          tripleResults = safeJsonParse(tripleStr, null);
+          
+          const semanticDriftStr = extractValue(note.semanticDriftResults, true);
+          semanticDriftResults = safeJsonParse(semanticDriftStr, null);
+          
+          const factCheckStr = extractValue(note.factCheckResults, true);
+          factCheckResults = safeJsonParse(factCheckStr, null);
+          
+          const sentimentStr = extractValue(note.sentimentResults, true);
+          sentimentResults = safeJsonParse(sentimentStr, null);
+          
+          const multimodalStr = extractValue(note.multimodalResults, true);
+          multimodalResults = safeJsonParse(multimodalStr, null);
+          
+          const judgingStr = extractValue(note.judgingResults, true);
+          judgingResults = safeJsonParse(judgingStr, null);
         }
 
         const response = {
           topicId: extractValue(note.topicId) || topicId,
           found: true,
-          trustScore: parseFloat(extractValue(note.trustScore)) || 0,
           summary: extractValue(note.summary),
           title: extractValue(note.title),
           createdAt: extractValue(note.createdAt),
-          ual: ual || null,
+          ual: ual || null, // Ensure UAL is always included
           contributionType: contributionType || "regular",
           walletAddress: walletAddress || null,
           priceUsd: priceUsd ? parseFloat(priceUsd) : null,
@@ -314,6 +495,74 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           primarySource: extractValue(note.primarySource) || assetDetails?.public?.assertion?.primarySource,
           secondarySource: extractValue(note.secondarySource) || assetDetails?.public?.assertion?.secondarySource,
           provenance: provenance || assetDetails?.public?.assertion?.provenance,
+          // Full analysis results
+          analysisResult: (() => {
+            // Always try to parse individual results as fallback, even if analysisResult exists
+            // This ensures we have data even if analysisResult is incomplete
+            if (!fetchResults) {
+              const fetchStr = extractValue(note.fetchResults, true);
+              fetchResults = safeJsonParse(fetchStr, null);
+            }
+            if (!tripleResults) {
+              const tripleStr = extractValue(note.tripleResults, true);
+              tripleResults = safeJsonParse(tripleStr, null);
+            }
+            if (!semanticDriftResults) {
+              const semanticDriftStr = extractValue(note.semanticDriftResults, true);
+              semanticDriftResults = safeJsonParse(semanticDriftStr, null);
+            }
+            if (!factCheckResults) {
+              const factCheckStr = extractValue(note.factCheckResults, true);
+              factCheckResults = safeJsonParse(factCheckStr, null);
+            }
+            if (!sentimentResults) {
+              const sentimentStr = extractValue(note.sentimentResults, true);
+              sentimentResults = safeJsonParse(sentimentStr, null);
+            }
+            if (!multimodalResults) {
+              const multimodalStr = extractValue(note.multimodalResults, true);
+              multimodalResults = safeJsonParse(multimodalStr, null);
+            }
+            if (!judgingResults) {
+              const judgingStr = extractValue(note.judgingResults, true);
+              judgingResults = safeJsonParse(judgingStr, null);
+            }
+            
+            // Merge parsed analysisResult with individual results
+            // Priority: analysisResult.results.X > individualResults > assetDetails
+            const mergedResult = analysisResult || {};
+            const mergedResults = {
+              fetch: mergedResult.results?.fetch || fetchResults || assetDetails?.public?.assertion?.fetchResults || {},
+              triple: mergedResult.results?.triple || tripleResults || assetDetails?.public?.assertion?.tripleResults || {},
+              semanticdrift: mergedResult.results?.semanticdrift || semanticDriftResults || assetDetails?.public?.assertion?.semanticDriftResults || {},
+              factcheck: mergedResult.results?.factcheck || factCheckResults || assetDetails?.public?.assertion?.factCheckResults || {},
+              sentiment: mergedResult.results?.sentiment || sentimentResults || assetDetails?.public?.assertion?.sentimentResults || {},
+              multimodal: mergedResult.results?.multimodal || multimodalResults || assetDetails?.public?.assertion?.multimodalResults || {},
+              judging: mergedResult.results?.judging || judgingResults || assetDetails?.public?.assertion?.judgingResults || {},
+            };
+            
+            // If analysisResult exists and has results, use it as base but merge in any missing individual results
+            if (analysisResult && analysisResult.results) {
+              return {
+                ...analysisResult,
+                results: mergedResults,
+              };
+            }
+            
+            // Otherwise, construct from individual results
+            return {
+              status: mergedResult.status || extractValue(note.analysisStatus) || "success",
+              analysis_id: mergedResult.analysis_id || extractValue(note.analysisId) || "",
+              topic: mergedResult.topic || extractValue(note.title) || topicId,
+              steps_completed: mergedResult.steps_completed || (() => {
+                const stepsStr = extractValue(note.stepsCompleted);
+                return safeJsonParse(stepsStr, []);
+              })(),
+              results: mergedResults,
+              execution_time_seconds: mergedResult.execution_time_seconds || parseFloat(extractValue(note.executionTimeSeconds)) || 0,
+              timestamp: mergedResult.timestamp || extractValue(note.analysisTimestamp) || extractValue(note.createdAt) || new Date().toISOString(),
+            };
+          })(),
           assetDetails: assetDetails || null,
         };
 
@@ -360,28 +609,20 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
   /**
    * MCP Tool: Search Community Notes
-   * Allows AI agents to search for Community Notes by keywords or trust score range
+   * Allows AI agents to search for Community Notes by keywords
    */
   mcp.registerTool(
     "dkgpedia-search-community-notes",
     {
       title: "Search Community Notes",
       description:
-        "Search for Community Notes by topic keywords or filter by trust score range. " +
+        "Search for Community Notes by topic keywords. " +
         "Returns a list of matching Community Notes.",
       inputSchema: {
         keyword: z
           .string()
           .optional()
           .describe("Search keyword to match against topic IDs or titles"),
-        minTrustScore: z
-          .number()
-          .optional()
-          .describe("Minimum trust score (0-100)"),
-        maxTrustScore: z
-          .number()
-          .optional()
-          .describe("Maximum trust score (0-100)"),
         limit: z
           .number()
           .optional()
@@ -389,7 +630,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           .describe("Maximum number of results to return"),
       },
     },
-    async ({ keyword, minTrustScore, maxTrustScore, limit = 10 }) => {
+    async ({ keyword, limit = 10 }) => {
       try {
         // Validate that we're using a remote OT-Node, not localhost
         try {
@@ -423,7 +664,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           SELECT * WHERE {
             ?asset a dkgpedia:CommunityNote .
             ?asset dkgpedia:topicId ?topicId .
-            ?asset dkgpedia:trustScore ?trustScore .
             OPTIONAL { ?asset dkgpedia:summary ?summary . }
             OPTIONAL { ?asset dkgpedia:name ?title . }
             OPTIONAL { ?asset dkgpedia:dateCreated ?createdAt . }
@@ -435,6 +675,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             OPTIONAL { ?asset dkgpedia:notableInstances ?notableInstances . }
             OPTIONAL { ?asset dkgpedia:primarySource ?primarySource . }
             OPTIONAL { ?asset dkgpedia:secondarySource ?secondarySource . }
+            OPTIONAL { ?asset dkgpedia:analysisResult ?analysisResult . }
         `;
 
         if (keyword) {
@@ -446,13 +687,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           `;
         }
 
-        if (minTrustScore !== undefined) {
-          query += `FILTER (?trustScore >= ${minTrustScore})`;
-        }
-
-        if (maxTrustScore !== undefined) {
-          query += `FILTER (?trustScore <= ${maxTrustScore})`;
-        }
 
         query += `
           }
@@ -516,35 +750,24 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           const walletAddress = extractValue(note.walletAddress || note.wallet_address);
           const priceUsd = extractValue(note.priceUsd || note.price_usd);
           
-          // Parse JSON fields if they exist
-          let categoryMetrics = null;
-          let notableInstances = null;
+          // Parse JSON fields using safe parsing
+          // Use preserveJsonEscapes=true to avoid corrupting JSON escape sequences
+          const categoryMetricsStr = extractValue(note.categoryMetrics, true);
+          const categoryMetrics = safeJsonParse(categoryMetricsStr, null);
           
-          try {
-            const categoryMetricsStr = extractValue(note.categoryMetrics);
-            if (categoryMetricsStr) {
-              categoryMetrics = JSON.parse(categoryMetricsStr);
-            }
-          } catch (e) {
-            // Ignore parse errors
-          }
+          const notableInstancesStr = extractValue(note.notableInstances, true);
+          const notableInstances = safeJsonParse(notableInstancesStr, null);
           
-          try {
-            const notableInstancesStr = extractValue(note.notableInstances);
-            if (notableInstancesStr) {
-              notableInstances = JSON.parse(notableInstancesStr);
-            }
-          } catch (e) {
-            // Ignore parse errors
-          }
+          // Parse analysis result if available
+          const analysisResultStr = extractValue(note.analysisResult, true);
+          const analysisResult = safeJsonParse(analysisResultStr, null);
           
           return {
             topicId: extractValue(note.topicId),
-            trustScore: parseFloat(extractValue(note.trustScore)) || 0,
             summary: extractValue(note.summary),
             title: extractValue(note.title),
             createdAt: extractValue(note.createdAt),
-            ual: ual || null,
+            ual: ual || null, // Ensure UAL is always included
             contributionType: contributionType || "regular",
             walletAddress: walletAddress || null,
             priceUsd: priceUsd ? parseFloat(priceUsd) : null,
@@ -553,6 +776,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             notableInstances: notableInstances,
             primarySource: extractValue(note.primarySource),
             secondarySource: extractValue(note.secondarySource),
+            analysisResult: analysisResult,
           };
         });
 
@@ -614,20 +838,25 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           }),
         }),
         response: {
-          description: "Community Note data",
+          description: "Community Note data with full analysis results",
           schema: z.object({
             topicId: z.string(),
             found: z.boolean(),
-            trustScore: z.number().optional(),
             summary: z.string().optional(),
             title: z.string().optional(),
             createdAt: z.string().optional(),
-            ual: z.string().nullable().optional(),
+            ual: z.string().nullable(), // UAL is always included
             contributionType: z.string().optional(),
             walletAddress: z.string().nullable().optional(),
             priceUsd: z.number().nullable().optional(),
             isPaywalled: z.boolean().optional(),
             paymentRequired: z.boolean().optional(),
+            categoryMetrics: z.any().optional(),
+            notableInstances: z.any().optional(),
+            primarySource: z.string().optional(),
+            secondarySource: z.string().optional(),
+            provenance: z.any().optional(),
+            analysisResult: z.any().optional(), // Full analysis result structure
             error: z.string().optional(),
           }),
         },
@@ -655,7 +884,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             SELECT * WHERE {
               ?asset a dkgpedia:CommunityNote .
               ?asset dkgpedia:topicId "${topicId}" .
-              ?asset dkgpedia:trustScore ?trustScore .
               OPTIONAL { ?asset dkgpedia:summary ?summary . }
               OPTIONAL { ?asset dkgpedia:name ?title . }
               OPTIONAL { ?asset dkgpedia:dateCreated ?createdAt . }
@@ -668,6 +896,19 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               OPTIONAL { ?asset dkgpedia:primarySource ?primarySource . }
               OPTIONAL { ?asset dkgpedia:secondarySource ?secondarySource . }
               OPTIONAL { ?asset dkgpedia:provenance ?provenance . }
+              OPTIONAL { ?asset dkgpedia:analysisResult ?analysisResult . }
+              OPTIONAL { ?asset dkgpedia:fetchResults ?fetchResults . }
+              OPTIONAL { ?asset dkgpedia:tripleResults ?tripleResults . }
+              OPTIONAL { ?asset dkgpedia:semanticDriftResults ?semanticDriftResults . }
+              OPTIONAL { ?asset dkgpedia:factCheckResults ?factCheckResults . }
+              OPTIONAL { ?asset dkgpedia:sentimentResults ?sentimentResults . }
+              OPTIONAL { ?asset dkgpedia:multimodalResults ?multimodalResults . }
+              OPTIONAL { ?asset dkgpedia:judgingResults ?judgingResults . }
+              OPTIONAL { ?asset dkgpedia:analysisId ?analysisId . }
+              OPTIONAL { ?asset dkgpedia:analysisStatus ?analysisStatus . }
+              OPTIONAL { ?asset dkgpedia:stepsCompleted ?stepsCompleted . }
+              OPTIONAL { ?asset dkgpedia:executionTimeSeconds ?executionTimeSeconds . }
+              OPTIONAL { ?asset dkgpedia:analysisTimestamp ?analysisTimestamp . }
             }
             ORDER BY DESC(?createdAt)
             LIMIT 1
@@ -691,6 +932,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             return res.status(404).json({
               topicId,
               found: false,
+              ual: null,
             });
           }
 
@@ -702,47 +944,61 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           const priceUsd = extractValue(note.priceUsd || note.price_usd);
           const isUserContributed = isPaywalled(note);
 
-          // Parse JSON fields
-          let categoryMetrics = null;
-          let notableInstances = null;
-          let provenance = null;
+          // Parse JSON fields using safe parsing
+          // Use preserveJsonEscapes=true to avoid corrupting JSON escape sequences
+          const categoryMetricsStr = extractValue(note.categoryMetrics, true);
+          const categoryMetrics = safeJsonParse(categoryMetricsStr, null);
           
-          try {
-            const categoryMetricsStr = extractValue(note.categoryMetrics);
-            if (categoryMetricsStr) {
-              categoryMetrics = JSON.parse(categoryMetricsStr);
-            }
-          } catch (e) {
-            console.warn("Failed to parse categoryMetrics:", e);
-          }
+          const notableInstancesStr = extractValue(note.notableInstances, true);
+          const notableInstances = safeJsonParse(notableInstancesStr, null);
           
-          try {
-            const notableInstancesStr = extractValue(note.notableInstances);
-            if (notableInstancesStr) {
-              notableInstances = JSON.parse(notableInstancesStr);
-            }
-          } catch (e) {
-            console.warn("Failed to parse notableInstances:", e);
-          }
+          const provenanceStr = extractValue(note.provenance, true);
+          const provenance = safeJsonParse(provenanceStr, null);
+
+          // Parse full analysis result if available
+          const analysisResultStr = extractValue(note.analysisResult, true);
+          let analysisResult = safeJsonParse(analysisResultStr, null);
+
+          // Parse individual result sections if full analysisResult is not available
+          let fetchResults = null;
+          let tripleResults = null;
+          let semanticDriftResults = null;
+          let factCheckResults = null;
+          let sentimentResults = null;
+          let multimodalResults = null;
+          let judgingResults = null;
           
-          try {
-            const provenanceStr = extractValue(note.provenance);
-            if (provenanceStr) {
-              provenance = JSON.parse(provenanceStr);
-            }
-          } catch (e) {
-            console.warn("Failed to parse provenance:", e);
+          if (!analysisResult) {
+            const fetchStr = extractValue(note.fetchResults, true);
+            fetchResults = safeJsonParse(fetchStr, null);
+            
+            const tripleStr = extractValue(note.tripleResults, true);
+            tripleResults = safeJsonParse(tripleStr, null);
+            
+            const semanticDriftStr = extractValue(note.semanticDriftResults, true);
+            semanticDriftResults = safeJsonParse(semanticDriftStr, null);
+            
+            const factCheckStr = extractValue(note.factCheckResults, true);
+            factCheckResults = safeJsonParse(factCheckStr, null);
+            
+            const sentimentStr = extractValue(note.sentimentResults, true);
+            sentimentResults = safeJsonParse(sentimentStr, null);
+            
+            const multimodalStr = extractValue(note.multimodalResults, true);
+            multimodalResults = safeJsonParse(multimodalStr, null);
+            
+            const judgingStr = extractValue(note.judgingResults, true);
+            judgingResults = safeJsonParse(judgingStr, null);
           }
 
           // Build complete response object
           const responseData = {
             topicId: extractValue(note.topicId) || topicId,
             found: true,
-            trustScore: parseFloat(extractValue(note.trustScore)) || 0,
             summary: extractValue(note.summary),
             title: extractValue(note.title),
             createdAt: extractValue(note.createdAt),
-            ual: ual || null,
+            ual: ual || null, // Ensure UAL is always included
             contributionType: contributionType || "regular",
             walletAddress: walletAddress || null,
             priceUsd: priceUsd ? parseFloat(priceUsd) : null,
@@ -752,6 +1008,27 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             primarySource: extractValue(note.primarySource),
             secondarySource: extractValue(note.secondarySource),
             provenance: provenance,
+            // Full analysis results
+            analysisResult: analysisResult || {
+              status: extractValue(note.analysisStatus) || "success",
+              analysis_id: extractValue(note.analysisId) || "",
+              topic: extractValue(note.title) || topicId,
+              steps_completed: (() => {
+                const stepsStr = extractValue(note.stepsCompleted);
+                return safeJsonParse(stepsStr, []);
+              })(),
+              results: {
+                fetch: fetchResults || {},
+                triple: tripleResults || {},
+                semanticdrift: semanticDriftResults || {},
+                factcheck: factCheckResults || {},
+                sentiment: sentimentResults || {},
+                multimodal: multimodalResults || {},
+                judging: judgingResults || {},
+              },
+              execution_time_seconds: parseFloat(extractValue(note.executionTimeSeconds)) || 0,
+              timestamp: extractValue(note.analysisTimestamp) || extractValue(note.createdAt) || new Date().toISOString(),
+            },
           };
 
           // Check if payment is required
@@ -800,17 +1077,9 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       {
         tag: "DKGPedia",
         summary: "Search Community Notes",
-        description: "Search for Community Notes by keyword or trust score",
+        description: "Search for Community Notes by keyword",
         query: z.object({
           keyword: z.string().optional(),
-          minTrustScore: z
-            .number({ coerce: true })
-            .optional()
-            .openapi({ description: "Minimum trust score (0-100)" }),
-          maxTrustScore: z
-            .number({ coerce: true })
-            .optional()
-            .openapi({ description: "Maximum trust score (0-100)" }),
           limit: z
             .number({ coerce: true })
             .optional()
@@ -825,7 +1094,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             notes: z.array(
               z.object({
                 topicId: z.string(),
-                trustScore: z.number(),
                 summary: z.string(),
                 title: z.string(),
                 createdAt: z.string(),
@@ -836,7 +1104,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         },
       },
       async (req, res) => {
-        const { keyword, minTrustScore, maxTrustScore, limit = 10 } = req.query;
+        const { keyword, limit = 10 } = req.query;
 
         try {
           try {
@@ -859,7 +1127,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             SELECT * WHERE {
               ?asset a dkgpedia:CommunityNote .
               ?asset dkgpedia:topicId ?topicId .
-              ?asset dkgpedia:trustScore ?trustScore .
               OPTIONAL { ?asset dkgpedia:summary ?summary . }
               OPTIONAL { ?asset dkgpedia:name ?title . }
               OPTIONAL { ?asset dkgpedia:dateCreated ?createdAt . }
@@ -871,6 +1138,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               OPTIONAL { ?asset dkgpedia:notableInstances ?notableInstances . }
               OPTIONAL { ?asset dkgpedia:primarySource ?primarySource . }
               OPTIONAL { ?asset dkgpedia:secondarySource ?secondarySource . }
+              OPTIONAL { ?asset dkgpedia:analysisResult ?analysisResult . }
           `;
 
           if (keyword) {
@@ -882,13 +1150,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             `;
           }
 
-          if (minTrustScore !== undefined) {
-            query += `FILTER (?trustScore >= ${minTrustScore})`;
-          }
-
-          if (maxTrustScore !== undefined) {
-            query += `FILTER (?trustScore <= ${maxTrustScore})`;
-          }
 
           query += `
             }
@@ -923,35 +1184,24 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             const walletAddress = extractValue(note.walletAddress || note.wallet_address);
             const priceUsd = extractValue(note.priceUsd || note.price_usd);
             
-            // Parse JSON fields
-            let categoryMetrics = null;
-            let notableInstances = null;
-            
-            try {
-              const categoryMetricsStr = extractValue(note.categoryMetrics);
-              if (categoryMetricsStr) {
-                categoryMetrics = JSON.parse(categoryMetricsStr);
-              }
-            } catch (e) {
-              // Ignore parse errors
-            }
-            
-            try {
-              const notableInstancesStr = extractValue(note.notableInstances);
-              if (notableInstancesStr) {
-                notableInstances = JSON.parse(notableInstancesStr);
-              }
-            } catch (e) {
-              // Ignore parse errors
-            }
+          // Parse JSON fields using safe parsing
+          // Use preserveJsonEscapes=true to avoid corrupting JSON escape sequences
+          const categoryMetricsStr = extractValue(note.categoryMetrics, true);
+          const categoryMetrics = safeJsonParse(categoryMetricsStr, null);
+          
+          const notableInstancesStr = extractValue(note.notableInstances, true);
+          const notableInstances = safeJsonParse(notableInstancesStr, null);
+          
+          // Parse analysis result if available
+          const analysisResultStr = extractValue(note.analysisResult, true);
+          const analysisResult = safeJsonParse(analysisResultStr, null);
             
             return {
               topicId: extractValue(note.topicId),
-              trustScore: parseFloat(extractValue(note.trustScore)) || 0,
               summary: extractValue(note.summary),
               title: extractValue(note.title),
               createdAt: extractValue(note.createdAt),
-              ual: ual || null,
+              ual: ual || null, // Ensure UAL is always included
               contributionType: contributionType || "regular",
               walletAddress: walletAddress || null,
               priceUsd: priceUsd ? parseFloat(priceUsd) : null,
@@ -960,6 +1210,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               notableInstances: notableInstances,
               primarySource: extractValue(note.primarySource),
               secondarySource: extractValue(note.secondarySource),
+              analysisResult: analysisResult,
             };
           });
 
@@ -991,29 +1242,9 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       {
         tag: "DKGPedia",
         summary: "Publish a Community Note to DKG",
-        description: "Publish a Community Note as a Knowledge Asset",
+        description: "Publish a Community Note as a Knowledge Asset with full analysis results",
         body: z.object({
           topicId: z.string().openapi({ description: "Topic identifier" }),
-          trustScore: z
-            .number()
-            .min(0)
-            .max(100)
-            .openapi({ description: "Trust score (0-100)" }),
-          summary: z.string().openapi({ description: "Summary of findings" }),
-          categoryMetrics: z
-            .record(z.string(), z.number())
-            .openapi({ description: "Count of each category type" }),
-          notableInstances: z
-            .array(
-              z.object({
-                content: z.string(),
-                category: z.string(),
-              }),
-            )
-            .optional()
-            .openapi({ description: "Notable instances or examples" }),
-          primarySource: z.string().openapi({ description: "Primary source title" }),
-          secondarySource: z.string().openapi({ description: "Secondary source title" }),
           title: z.string().optional().openapi({ description: "Title of the note" }),
           contributionType: z
             .enum(["regular", "User contributed"])
@@ -1029,22 +1260,27 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             .min(0)
             .optional()
             .openapi({ description: "Price in USD for user-contributed content (required if contributionType is 'User contributed')" }),
-          provenance: z
+          // Full analysis result structure
+          analysisResult: z
             .object({
-              inputHash: z.string().optional(),
-              createdBy: z.string().optional(),
-              version: z.string().optional(),
-              references: z
-                .object({
-                  primaryUrl: z.string().optional(),
-                  secondaryUrl: z.string().optional(),
-                  primaryUal: z.string().optional(),
-                  secondaryUal: z.string().optional(),
-                })
-                .optional(),
+              status: z.string(),
+              analysis_id: z.string(),
+              topic: z.string(),
+              steps_completed: z.array(z.string()),
+              results: z.object({
+                fetch: z.any(),
+                triple: z.any(),
+                semanticdrift: z.any(),
+                factcheck: z.any(),
+                sentiment: z.any(),
+                multimodal: z.any(),
+                judging: z.any(),
+              }),
+              errors: z.array(z.string()).optional(),
+              timestamp: z.string().optional(),
+              execution_time_seconds: z.number(),
             })
-            .optional()
-            .openapi({ description: "Provenance metadata" }),
+            .openapi({ description: "Complete analysis result from the analysis endpoint" }),
         }),
         response: {
           description: "Published Community Note with UAL",
@@ -1059,17 +1295,11 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       async (req, res) => {
         const {
           topicId,
-          trustScore,
-          summary,
-          categoryMetrics,
-          notableInstances = [],
-          primarySource,
-          secondarySource,
           title,
           contributionType = "regular",
           walletAddress,
           priceUsd,
-          provenance = {},
+          analysisResult,
         } = req.body;
 
         // Validate user-contributed content requirements
@@ -1090,27 +1320,66 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           }
         }
 
+        // Validate analysis result
+        if (!analysisResult || !analysisResult.results) {
+          return res.status(400).json({
+            success: false,
+            ual: null,
+            error: "analysisResult is required and must contain results",
+          });
+        }
+
         try {
+          // Extract key metrics from analysis result for quick access
+          const summary = analysisResult.results.judging?.report_preview || 
+                         analysisResult.results.judging?.full_report?.substring(0, 500) || 
+                         "Analysis completed";
+          
+          // Extract categoryMetrics and notableInstances from triple analysis if available
+          const categoryMetrics = analysisResult.results.triple?.entity_coherence || {};
+          const notableInstances = analysisResult.results.triple?.contradictions?.contradictions || [];
+          
+          // Extract sources from fetch results
+          const primarySource = analysisResult.results.fetch?.grokipedia?.files?.grokipedia || 
+                               analysisResult.results.fetch?.files?.grokipedia || "";
+          const secondarySource = analysisResult.results.fetch?.wikipedia?.files?.wikipedia || 
+                                 analysisResult.results.fetch?.files?.wikipedia || "";
+
           // Create JSON-LD structure using dkgpedia namespace exclusively
+          // Store the complete analysis result as JSON strings for complex nested structures
           const jsonld: any = {
             "@context": {
               dkgpedia: "https://dkgpedia.org/schema/",
             },
             "@type": "dkgpedia:CommunityNote",
             "dkgpedia:topicId": topicId,
-            "dkgpedia:trustScore": trustScore,
+            "dkgpedia:name": title || analysisResult.topic || topicId,
+            "dkgpedia:dateCreated": new Date().toISOString(),
+            "dkgpedia:contributionType": contributionType,
+            
+            // Core metrics (for quick SPARQL queries)
             "dkgpedia:summary": summary,
             "dkgpedia:categoryMetrics": JSON.stringify(categoryMetrics),
             "dkgpedia:notableInstances": JSON.stringify(notableInstances),
             "dkgpedia:primarySource": primarySource,
             "dkgpedia:secondarySource": secondarySource,
-            "dkgpedia:name": title || topicId,
-            "dkgpedia:dateCreated": new Date().toISOString(),
-            "dkgpedia:contributionType": contributionType,
-            "dkgpedia:provenance": JSON.stringify({
-              createdBy: "DKGPedia",
-              ...provenance,
-            }),
+            
+            // Store complete analysis results as JSON strings
+            "dkgpedia:analysisResult": JSON.stringify(analysisResult),
+            "dkgpedia:fetchResults": JSON.stringify(analysisResult.results.fetch),
+            "dkgpedia:tripleResults": JSON.stringify(analysisResult.results.triple),
+            "dkgpedia:semanticDriftResults": JSON.stringify(analysisResult.results.semanticdrift),
+            "dkgpedia:factCheckResults": JSON.stringify(analysisResult.results.factcheck),
+            "dkgpedia:sentimentResults": JSON.stringify(analysisResult.results.sentiment),
+            "dkgpedia:multimodalResults": JSON.stringify(analysisResult.results.multimodal),
+            "dkgpedia:judgingResults": JSON.stringify(analysisResult.results.judging),
+            
+            // Analysis metadata
+            "dkgpedia:analysisId": analysisResult.analysis_id,
+            "dkgpedia:analysisStatus": analysisResult.status,
+            "dkgpedia:stepsCompleted": JSON.stringify(analysisResult.steps_completed),
+            "dkgpedia:executionTimeSeconds": analysisResult.execution_time_seconds,
+            "dkgpedia:analysisTimestamp": analysisResult.timestamp || new Date().toISOString(),
           };
 
           // Add wallet address and price for user-contributed content
