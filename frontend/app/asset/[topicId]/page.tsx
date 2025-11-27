@@ -348,20 +348,14 @@ export default function AssetPage() {
                 <h2 className="text-xl font-mono uppercase text-primary mb-4">
                   Universal Asset Locator
                 </h2>
-                <code className="block bg-black/50 p-4 rounded-lg text-sm font-mono break-all">
+                <a
+                  href={`https://dkg-testnet.origintrail.io/explore?ual=${encodeURIComponent(asset.ual)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block bg-black/50 p-4 rounded-lg text-sm font-mono break-all text-primary hover:text-primary/80 hover:underline transition-colors"
+                >
                   {asset.ual}
-                </code>
-              </div>
-            )}
-
-            {asset.walletAddress && (
-              <div>
-                <h2 className="text-xl font-mono uppercase text-primary mb-4">
-                  Wallet Address
-                </h2>
-                <code className="block bg-black/50 p-4 rounded-lg text-sm font-mono break-all">
-                  {asset.walletAddress}
-                </code>
+                </a>
               </div>
             )}
           </div>
