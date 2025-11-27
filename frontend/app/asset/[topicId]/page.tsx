@@ -6,13 +6,32 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import axios from "axios";
 import { useWallet } from "@/contexts/wallet-context";
+import AnalysisResults from "@/components/analysis-results";
 
 // @ts-ignore - x402-axios types
 import { withPaymentInterceptor } from "x402-axios";
 
+interface AnalysisResult {
+  status: string;
+  analysis_id: string;
+  topic: string;
+  steps_completed: string[];
+  results: {
+    fetch: any;
+    triple: any;
+    semanticdrift: any;
+    factcheck: any;
+    sentiment: any;
+    multimodal: any;
+    judging: any;
+  };
+  errors?: string[];
+  timestamp?: string;
+  execution_time_seconds: number;
+}
+
 interface AssetData {
   topicId: string;
-  trustScore: number;
   summary: string;
   title?: string;
   contributionType?: string;
@@ -27,6 +46,7 @@ interface AssetData {
   primarySource?: string;
   secondarySource?: string;
   provenance?: any;
+  analysisResult?: AnalysisResult;
 }
 
 // Base axios instance
@@ -102,7 +122,6 @@ export default function AssetPage() {
               const priceInDollars = parseFloat(paymentInfo.maxAmountRequired) / 10000;
               setAsset({
                 topicId,
-                trustScore: 0,
                 summary: "",
                 found: false,
                 isPaywalled: true,
@@ -114,7 +133,6 @@ export default function AssetPage() {
               // Fallback: try to get basic asset info without payment
               setAsset({
                 topicId,
-                trustScore: 0,
                 summary: "",
                 found: false,
                 isPaywalled: true,
@@ -230,7 +248,7 @@ export default function AssetPage() {
 
   return (
     <div className="min-h-screen pt-32 pb-16 px-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <Button
           onClick={() => router.back()}
           className="mb-8"
@@ -239,26 +257,28 @@ export default function AssetPage() {
           Back
         </Button>
 
-        <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-8">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-6 mb-8 pb-8 border-b border-border">
+        {/* Header with Price */}
+        <div className="bg-black/90 backdrop-blur-sm border border-primary/30 rounded-2xl p-6 mb-6">
+          <div className="flex items-start justify-between gap-6">
             <div className="flex-1">
-              <h1 className="font-sentient text-4xl font-light mb-4">
+              <h1 className="font-sentient text-4xl font-light mb-2">
                 {asset.title || asset.topicId}
               </h1>
               <p className="text-sm uppercase font-mono text-muted-foreground">
-                {asset.contributionType || "Regular"}
+                {asset.contributionType || "Regular"} Contribution
               </p>
+              {asset.ual && (
+                <a
+                  href={`https://dkg-testnet.origintrail.io/explore?ual=${encodeURIComponent(asset.ual)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-mono text-primary/70 hover:text-primary hover:underline mt-2 inline-block break-all"
+                >
+                  UAL: {asset.ual}
+                </a>
+              )}
             </div>
             <div className="flex gap-6">
-              <div className="flex flex-col items-end">
-                <span className="text-xs uppercase font-mono text-muted-foreground mb-2">
-                  Trust Score
-                </span>
-                <span className="text-4xl font-mono font-bold text-primary">
-                  {asset.trustScore}
-                </span>
-              </div>
               {asset.isPaywalled && asset.priceUsd !== undefined && (
                 <div className="flex flex-col items-end pl-6 border-l border-primary/20">
                   <span className="text-xs uppercase font-mono text-yellow-500/70 mb-2">
@@ -274,92 +294,96 @@ export default function AssetPage() {
               )}
             </div>
           </div>
-
-          {/* Content */}
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-mono uppercase text-primary mb-4">Summary</h2>
-              <p className="text-base leading-relaxed text-foreground/90">
-                {asset.summary}
-              </p>
-            </div>
-
-            {/* Sources */}
-            {(asset.primarySource || asset.secondarySource) && (
-              <div>
-                <h2 className="text-xl font-mono uppercase text-primary mb-4">Sources</h2>
-                <div className="space-y-3">
-                  {asset.primarySource && (
-                    <div>
-                      <span className="text-sm font-mono text-muted-foreground">Primary: </span>
-                      <span className="text-base text-foreground/90">{asset.primarySource}</span>
-                    </div>
-                  )}
-                  {asset.secondarySource && (
-                    <div>
-                      <span className="text-sm font-mono text-muted-foreground">Secondary: </span>
-                      <span className="text-base text-foreground/90">{asset.secondarySource}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Category Metrics */}
-            {asset.categoryMetrics && Object.keys(asset.categoryMetrics).length > 0 && (
-              <div>
-                <h2 className="text-xl font-mono uppercase text-primary mb-4">Category Metrics</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {Object.entries(asset.categoryMetrics).map(([category, count]) => (
-                    <div key={category} className="bg-black/50 p-4 rounded-lg">
-                      <div className="text-sm font-mono text-muted-foreground capitalize mb-1">
-                        {category}
-                      </div>
-                      <div className="text-2xl font-mono font-bold text-primary">
-                        {count}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Notable Instances */}
-            {asset.notableInstances && asset.notableInstances.length > 0 && (
-              <div>
-                <h2 className="text-xl font-mono uppercase text-primary mb-4">Notable Instances</h2>
-                <div className="space-y-3">
-                  {asset.notableInstances.map((instance, idx) => (
-                    <div key={idx} className="bg-black/50 p-4 rounded-lg">
-                      <div className="text-sm font-mono text-primary mb-2 capitalize">
-                        {instance.category}
-                      </div>
-                      <p className="text-base text-foreground/90 leading-relaxed">
-                        {instance.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {asset.ual && (
-              <div>
-                <h2 className="text-xl font-mono uppercase text-primary mb-4">
-                  Universal Asset Locator
-                </h2>
-                <a
-                  href={`https://dkg-testnet.origintrail.io/explore?ual=${encodeURIComponent(asset.ual)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block bg-black/50 p-4 rounded-lg text-sm font-mono break-all text-primary hover:text-primary/80 hover:underline transition-colors"
-                >
-                  {asset.ual}
-                </a>
-              </div>
-            )}
-          </div>
         </div>
+
+        {/* Analysis Results */}
+        {asset.analysisResult ? (
+          <AnalysisResults 
+            data={asset.analysisResult}
+            showHeader={true}
+          />
+        ) : (
+          /* Fallback: Show summary if no analysis result available */
+          <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-8">
+            <div className="space-y-6">
+              {asset.summary && (
+                <div>
+                  <h2 className="text-xl font-mono uppercase text-primary mb-4">Summary</h2>
+                  <p className="text-base leading-relaxed text-foreground/90">
+                    {asset.summary}
+                  </p>
+                </div>
+              )}
+
+              {/* Sources */}
+              {(asset.primarySource || asset.secondarySource) && (
+                <div>
+                  <h2 className="text-xl font-mono uppercase text-primary mb-4">Sources</h2>
+                  <div className="space-y-3">
+                    {asset.primarySource && (
+                      <div>
+                        <span className="text-sm font-mono text-muted-foreground">Primary: </span>
+                        <span className="text-base text-foreground/90">{asset.primarySource}</span>
+                      </div>
+                    )}
+                    {asset.secondarySource && (
+                      <div>
+                        <span className="text-sm font-mono text-muted-foreground">Secondary: </span>
+                        <span className="text-base text-foreground/90">{asset.secondarySource}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Category Metrics */}
+              {asset.categoryMetrics && Object.keys(asset.categoryMetrics).length > 0 && (
+                <div>
+                  <h2 className="text-xl font-mono uppercase text-primary mb-4">Category Metrics</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {Object.entries(asset.categoryMetrics).map(([category, count]) => (
+                      <div key={category} className="bg-black/50 p-4 rounded-lg">
+                        <div className="text-sm font-mono text-muted-foreground capitalize mb-1">
+                          {category}
+                        </div>
+                        <div className="text-2xl font-mono font-bold text-primary">
+                          {typeof count === 'number' ? count : String(count)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notable Instances */}
+              {asset.notableInstances && asset.notableInstances.length > 0 && (
+                <div>
+                  <h2 className="text-xl font-mono uppercase text-primary mb-4">Notable Instances</h2>
+                  <div className="space-y-3">
+                    {asset.notableInstances.map((instance, idx) => (
+                      <div key={idx} className="bg-black/50 p-4 rounded-lg">
+                        {typeof instance === 'object' && 'category' in instance ? (
+                          <>
+                            <div className="text-sm font-mono text-primary mb-2 capitalize">
+                              {instance.category}
+                            </div>
+                            <p className="text-base text-foreground/90 leading-relaxed">
+                              {instance.content}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-base text-foreground/90 leading-relaxed">
+                            {JSON.stringify(instance)}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

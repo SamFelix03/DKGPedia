@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { PaymentInfoModal } from "@/components/payment-info-modal";
 import { Loader2 } from "lucide-react";
 
 interface Asset {
   topicId: string;
-  trustScore: number;
   summary: string;
   title?: string;
   contributionType?: string;
@@ -26,6 +26,9 @@ export default function MarketplacePage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     fetchAllAssets();
@@ -56,8 +59,26 @@ export default function MarketplacePage() {
     return true;
   });
 
-  const handleAssetClick = (topicId: string) => {
-    router.push(`/asset/${encodeURIComponent(topicId)}`);
+  const handleAssetClick = (asset: Asset) => {
+    // If paywalled, show payment modal instead of navigating directly
+    if (asset.isPaywalled && asset.priceUsd !== undefined) {
+      setSelectedAsset(asset);
+      setPaymentModalOpen(true);
+    } else {
+      // Free content, navigate directly
+      router.push(`/asset/${encodeURIComponent(asset.topicId)}`);
+    }
+  };
+
+  const handlePayAndOpen = () => {
+    if (selectedAsset) {
+      setIsProcessingPayment(true);
+      // Navigate to asset page - payment will be handled there via x402
+      router.push(`/asset/${encodeURIComponent(selectedAsset.topicId)}`);
+      setPaymentModalOpen(false);
+      setSelectedAsset(null);
+      setIsProcessingPayment(false);
+    }
   };
 
   return (
@@ -103,7 +124,7 @@ export default function MarketplacePage() {
             {filteredAssets.map((asset) => (
               <button
                 key={asset.topicId}
-                onClick={() => handleAssetClick(asset.topicId)}
+                onClick={() => handleAssetClick(asset)}
                 className={`text-left border rounded-2xl p-6 transition-all hover:shadow-lg ${
                   asset.isPaywalled
                     ? "bg-black/95 backdrop-blur-sm border-primary/40 hover:border-primary hover:shadow-primary/20"
@@ -115,12 +136,6 @@ export default function MarketplacePage() {
                     {asset.title || asset.topicId}
                   </h3>
                   <div className="flex flex-col items-end flex-shrink-0">
-                    <span className="text-[10px] uppercase font-mono text-muted-foreground mb-1">
-                      Trust
-                    </span>
-                    <span className="text-2xl font-mono font-bold text-primary">
-                      {asset.trustScore}
-                    </span>
                   </div>
                 </div>
 
@@ -148,6 +163,18 @@ export default function MarketplacePage() {
           <div className="text-center py-20">
             <p className="text-xl text-muted-foreground">No assets found</p>
           </div>
+        )}
+
+        {/* Payment Info Modal */}
+        {selectedAsset && (
+          <PaymentInfoModal
+            open={paymentModalOpen}
+            onOpenChange={setPaymentModalOpen}
+            onPayAndOpen={handlePayAndOpen}
+            title={selectedAsset.title || selectedAsset.topicId}
+            priceUsd={selectedAsset.priceUsd || 0}
+            loading={isProcessingPayment}
+          />
         )}
       </div>
     </div>

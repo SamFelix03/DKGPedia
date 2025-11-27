@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2, Plus, X, CheckCircle2 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import AnalysisResults from "@/components/analysis-results";
 
@@ -425,6 +432,7 @@ export default function ContributePage() {
   const { walletAddress } = useWallet();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ ual: string; verification_url?: string } | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
   // Form state
@@ -455,6 +463,7 @@ export default function ContributePage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
     setAnalysisResult(null);
 
     try {
@@ -486,6 +495,92 @@ export default function ContributePage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to analyze topic");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!analysisResult) {
+      setError("No analysis result to publish");
+      return;
+    }
+
+    if (!walletAddress) {
+      setError("Please connect your wallet to publish");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      // Extract topicId from analysis_id or generate a new one
+      // analysis_id format: "analysis_20251127_161539_Cattle" or "topic_<uuid>"
+      let topicId = analysisResult.analysis_id;
+      if (topicId.startsWith("analysis_")) {
+        // Extract the topic name from analysis_id and create topic_<uuid>
+        topicId = `topic_${uuidv4()}`;
+      } else if (!topicId.startsWith("topic_")) {
+        // If it doesn't start with topic_, add the prefix
+        topicId = `topic_${topicId}`;
+      }
+
+      // Ensure all required data is included
+      const payload = {
+        topicId,
+        title: title || analysisResult.topic,
+        contributionType: "User contributed" as const,
+        walletAddress: walletAddress,
+        priceUsd: parseFloat(priceUsd) || 0,
+        // Send the complete analysis result with all fields
+        analysisResult: {
+          status: analysisResult.status,
+          analysis_id: analysisResult.analysis_id,
+          topic: analysisResult.topic,
+          steps_completed: analysisResult.steps_completed,
+          results: {
+            fetch: analysisResult.results.fetch,
+            triple: analysisResult.results.triple,
+            semanticdrift: analysisResult.results.semanticdrift,
+            factcheck: analysisResult.results.factcheck,
+            sentiment: analysisResult.results.sentiment,
+            multimodal: analysisResult.results.multimodal,
+            judging: analysisResult.results.judging,
+          },
+          errors: analysisResult.errors || [],
+          timestamp: analysisResult.timestamp || new Date().toISOString(),
+          execution_time_seconds: analysisResult.execution_time_seconds,
+        },
+      };
+
+      console.log("Publishing payload:", JSON.stringify(payload, null, 2));
+
+      const response = await fetch("/api/dkgpedia/publish", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Show success message with DKG response
+        setSuccess({
+          ual: data.ual || "N/A",
+          verification_url: data.verification_url,
+        });
+        // Reset to initial state
+        setAnalysisResult(null);
+        setError(null);
+      } else {
+        setError(data.error || "Failed to publish to DKG");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to publish to DKG");
     } finally {
       setLoading(false);
     }
@@ -653,25 +748,93 @@ export default function ContributePage() {
           </form>
         ) : (
           <div className="space-y-6">
-            <AnalysisResults data={analysisResult} />
+            <AnalysisResults 
+              data={analysisResult}
+              showHeader={true}
+            />
 
             {/* Action Buttons */}
-            <div className="flex gap-4">
+            <div className="flex gap-4 max-w-4xl mx-auto">
               <Button
                 onClick={() => setAnalysisResult(null)}
+                disabled={loading}
                 className="flex-1 bg-transparent border border-input hover:bg-white/5 text-foreground"
               >
                 ← Analyze Another Topic
               </Button>
               <Button
+                onClick={handlePublish}
+                disabled={loading || !walletAddress}
                 className="flex-1 bg-primary hover:bg-primary/90 text-black font-bold font-mono"
               >
-                🚀 Publish to DKG (${priceUsd})
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  `🚀 Publish to DKG`
+                )}
               </Button>
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 max-w-4xl mx-auto">
+                <p className="text-sm font-mono text-destructive">{error}</p>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Success Modal */}
+      <Dialog open={!!success} onOpenChange={(open) => {
+        if (!open) {
+          setSuccess(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-400" />
+              Successfully Published
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Your analysis has been successfully published to OriginTrail DKG.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div>
+                <p className="text-xs font-mono text-muted-foreground mb-1">Universal Asset Locator (UAL):</p>
+                {success?.ual ? (
+                  <a
+                    href={`https://dkg-testnet.origintrail.io/explore?ual=${encodeURIComponent(success.ual)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-mono bg-black/50 border border-input rounded-lg px-3 py-2 break-all inline-block text-yellow-500 hover:underline"
+                  >
+                    {success.ual}
+                  </a>
+                ) : (
+                  <span className="text-sm font-mono bg-black/50 border border-input rounded-lg px-3 py-2 break-all">
+                    N/A
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={() => setSuccess(null)}
+              className="bg-primary hover:bg-primary/90 text-black font-bold font-mono"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
