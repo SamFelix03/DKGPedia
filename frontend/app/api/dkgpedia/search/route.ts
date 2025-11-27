@@ -6,15 +6,11 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const keyword = searchParams.get("keyword") || "";
-    const minTrustScore = searchParams.get("minTrustScore") || "0";
-    const maxTrustScore = searchParams.get("maxTrustScore") || "100";
     const limit = searchParams.get("limit") || "10";
 
     // Build query params
     const params = new URLSearchParams();
     if (keyword) params.append("keyword", keyword);
-    if (minTrustScore !== "0") params.append("minTrustScore", minTrustScore);
-    if (maxTrustScore !== "100") params.append("maxTrustScore", maxTrustScore);
     params.append("limit", limit);
 
     const response = await fetch(

@@ -9,13 +9,13 @@ import {
 } from "@/components/prompt-kit/prompt-input";
 import { PromptSuggestion } from "@/components/prompt-kit/prompt-suggestion";
 import { Button } from "./ui/button";
+import { PaymentInfoModal } from "@/components/payment-info-modal";
 import { ArrowUpIcon, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 interface SearchResult {
   topicId: string;
-  trustScore: number;
   summary: string;
   title?: string;
   contributionType?: string;
@@ -37,6 +37,9 @@ export function Hero() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<SearchResult | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Debounced search
   useEffect(() => {
@@ -92,7 +95,26 @@ export function Hero() {
 
   const handleSuggestionClick = (result: SearchResult) => {
     setShowSuggestions(false);
-    router.push(`/asset/${encodeURIComponent(result.topicId)}`);
+    
+    // If paywalled, show payment modal instead of navigating directly
+    if (result.isPaywalled && result.priceUsd !== undefined) {
+      setSelectedAsset(result);
+      setPaymentModalOpen(true);
+    } else {
+      // Free content, navigate directly
+      router.push(`/asset/${encodeURIComponent(result.topicId)}`);
+    }
+  };
+
+  const handlePayAndOpen = () => {
+    if (selectedAsset) {
+      setIsProcessingPayment(true);
+      // Navigate to asset page - payment will be handled there via x402
+      router.push(`/asset/${encodeURIComponent(selectedAsset.topicId)}`);
+      setPaymentModalOpen(false);
+      setSelectedAsset(null);
+      setIsProcessingPayment(false);
+    }
   };
 
   return (
@@ -165,15 +187,6 @@ export function Hero() {
                           </h4>
                         </div>
                         <div className="flex items-center gap-6 flex-shrink-0">
-                          {/* Trust Score */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] uppercase font-mono text-muted-foreground">
-                              Trust
-                            </span>
-                            <span className="text-2xl font-mono font-bold text-primary">
-                              {result.trustScore}
-                            </span>
-                          </div>
                           
                           {/* Price for Paywalled Content */}
                           {result.isPaywalled && result.priceUsd !== undefined && (
@@ -203,6 +216,18 @@ export function Hero() {
             </div>
           </div>
         </div>
+
+        {/* Payment Info Modal */}
+        {selectedAsset && (
+          <PaymentInfoModal
+            open={paymentModalOpen}
+            onOpenChange={setPaymentModalOpen}
+            onPayAndOpen={handlePayAndOpen}
+            title={selectedAsset.title || selectedAsset.topicId}
+            priceUsd={selectedAsset.priceUsd || 0}
+            loading={isProcessingPayment}
+          />
+        )}
       </div>
   );
 }

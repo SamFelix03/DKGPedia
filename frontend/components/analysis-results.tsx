@@ -478,19 +478,23 @@ export default function AnalysisResults({
               <p className="text-sm text-foreground/70">{data.analysis_id}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {data.steps_completed.map((step) => (
-              <span
-                key={step}
-                className="px-3 py-1 bg-primary/10 border border-primary/30 rounded-full text-xs text-primary"
-              >
-                ✓ {step}
-              </span>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground mt-4">
-            Completed in {data.execution_time_seconds.toFixed(2)}s
-          </p>
+          {data.steps_completed && data.steps_completed.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {data.steps_completed.map((step) => (
+                <span
+                  key={step}
+                  className="px-3 py-1 bg-primary/10 border border-primary/30 rounded-full text-xs text-primary"
+                >
+                  ✓ {step}
+                </span>
+              ))}
+            </div>
+          )}
+          {data.execution_time_seconds !== undefined && (
+            <p className="text-xs text-muted-foreground mt-4">
+              Completed in {data.execution_time_seconds.toFixed(2)}s
+            </p>
+          )}
         </div>
       )}
 
@@ -569,43 +573,54 @@ export default function AnalysisResults({
         <TabsContent value="overview" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Fetch Stats */}
+        {data.results?.fetch && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <FileText className="h-5 w-5 text-blue-400" />
             <h3 className="text-lg uppercase text-blue-400">Content Fetched</h3>
           </div>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Grokipedia</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.fetch.grokipedia.word_count.toLocaleString()} words
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Grokipedia Chars</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.fetch.grokipedia.char_count.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Wikipedia</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.fetch.wikipedia.word_count.toLocaleString()} words
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Wikipedia Chars</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.fetch.wikipedia.char_count.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">References</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.fetch.grokipedia.references_count + data.results.fetch.wikipedia.references_count}
-              </span>
-            </div>
-            {data.results.fetch.grokipedia.sections !== undefined && (
+            {data.results?.fetch?.grokipedia?.word_count !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Grokipedia</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.fetch.grokipedia.word_count.toLocaleString()} words
+                </span>
+              </div>
+            )}
+            {data.results?.fetch?.grokipedia?.char_count !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Grokipedia Chars</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.fetch.grokipedia.char_count.toLocaleString()}
+                </span>
+              </div>
+            )}
+            {data.results?.fetch?.wikipedia?.word_count !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Wikipedia</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.fetch.wikipedia.word_count.toLocaleString()} words
+                </span>
+              </div>
+            )}
+            {data.results?.fetch?.wikipedia?.char_count !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Wikipedia Chars</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.fetch.wikipedia.char_count.toLocaleString()}
+                </span>
+              </div>
+            )}
+            {(data.results?.fetch?.grokipedia?.references_count !== undefined || data.results?.fetch?.wikipedia?.references_count !== undefined) && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">References</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {(data.results.fetch.grokipedia?.references_count || 0) + (data.results.fetch.wikipedia?.references_count || 0)}
+                </span>
+              </div>
+            )}
+            {data.results?.fetch?.grokipedia?.sections !== undefined && (
               <div className="flex justify-between items-center">
                 <span className="text-base text-muted-foreground">Sections</span>
                 <span className="text-xl font-bold text-yellow-500 font-mono">
@@ -615,192 +630,246 @@ export default function AnalysisResults({
             )}
           </div>
         </div>
+        )}
 
         {/* Triple Analysis */}
+        {data.results?.triple && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="h-5 w-5 text-purple-400" />
             <h3 className="text-lg uppercase text-purple-400">Knowledge Triples</h3>
           </div>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Total Triples</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.triple.basic_stats.total_triples.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Source A</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.triple.basic_stats.source_a_triples.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Source B</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.triple.basic_stats.source_b_triples.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Avg Similarity</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {(data.results.triple.semantic_similarity.average_similarity * 100).toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Max Similarity</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {(data.results.triple.semantic_similarity.max_similarity * 100).toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Contradictions</span>
-              <span className={`text-xl font-bold font-mono ${data.results.triple.contradictions.contradiction_count > 0 ? "text-yellow-500" : "text-green-400"}`}>
-                {data.results.triple.contradictions.contradiction_count}
-              </span>
-            </div>
+            {data.results?.triple?.basic_stats?.total_triples !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Total Triples</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.triple.basic_stats.total_triples.toLocaleString()}
+                </span>
+              </div>
+            )}
+            {data.results?.triple?.basic_stats?.source_a_triples !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Source A</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.triple.basic_stats.source_a_triples.toLocaleString()}
+                </span>
+              </div>
+            )}
+            {data.results?.triple?.basic_stats?.source_b_triples !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Source B</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.triple.basic_stats.source_b_triples.toLocaleString()}
+                </span>
+              </div>
+            )}
+            {data.results?.triple?.semantic_similarity?.average_similarity !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Avg Similarity</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {(data.results.triple.semantic_similarity.average_similarity * 100).toFixed(1)}%
+                </span>
+              </div>
+            )}
+            {data.results?.triple?.semantic_similarity?.max_similarity !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Max Similarity</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {(data.results.triple.semantic_similarity.max_similarity * 100).toFixed(1)}%
+                </span>
+              </div>
+            )}
+            {data.results?.triple?.contradictions?.contradiction_count !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Contradictions</span>
+                <span className={`text-xl font-bold font-mono ${data.results.triple.contradictions.contradiction_count > 0 ? "text-yellow-500" : "text-green-400"}`}>
+                  {data.results.triple.contradictions.contradiction_count}
+                </span>
+              </div>
+            )}
           </div>
         </div>
+        )}
 
         {/* Semantic Drift */}
+        {data.results?.semanticdrift && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Brain className="h-5 w-5 text-cyan-400" />
             <h3 className="text-lg uppercase text-cyan-400">Semantic Drift</h3>
           </div>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Drift Score</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.semanticdrift.semantic_drift_score.overall_drift_score.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Drift %</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.semanticdrift.semantic_drift_score.drift_percentage.toFixed(1)}%
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {data.results.semanticdrift.semantic_drift_score.interpretation}
-            </p>
+            {data.results?.semanticdrift?.semantic_drift_score?.overall_drift_score !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Drift Score</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.semanticdrift.semantic_drift_score.overall_drift_score.toFixed(2)}
+                </span>
+              </div>
+            )}
+            {data.results?.semanticdrift?.semantic_drift_score?.drift_percentage !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Drift %</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.semanticdrift.semantic_drift_score.drift_percentage.toFixed(1)}%
+                </span>
+              </div>
+            )}
+            {data.results?.semanticdrift?.semantic_drift_score?.interpretation && (
+              <p className="text-sm text-muted-foreground">
+                {data.results.semanticdrift.semantic_drift_score.interpretation}
+              </p>
+            )}
           </div>
         </div>
+        )}
 
         {/* Fact Check - Grokipedia */}
+        {data.results?.factcheck?.metrics?.grokipedia && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <CheckCircle className="h-5 w-5 text-green-400" />
             <h3 className="text-lg uppercase text-green-400">Grokipedia Verification</h3>
           </div>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Verification Score</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.factcheck.metrics.grokipedia.external_verification_score.verification_score}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Fabrication Risk</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.factcheck.metrics.grokipedia.fabrication_risk_score.fabrication_risk_score.toFixed(1)}%
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {data.results.factcheck.metrics.grokipedia.fabrication_risk_score.risk_level}
-            </p>
+            {data.results?.factcheck?.metrics?.grokipedia?.external_verification_score?.verification_score !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Verification Score</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.factcheck.metrics.grokipedia.external_verification_score.verification_score}%
+                </span>
+              </div>
+            )}
+            {data.results?.factcheck?.metrics?.grokipedia?.fabrication_risk_score?.fabrication_risk_score !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Fabrication Risk</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.factcheck.metrics.grokipedia.fabrication_risk_score.fabrication_risk_score.toFixed(1)}%
+                </span>
+              </div>
+            )}
+            {data.results?.factcheck?.metrics?.grokipedia?.fabrication_risk_score?.risk_level && (
+              <p className="text-sm text-muted-foreground">
+                {data.results.factcheck.metrics.grokipedia.fabrication_risk_score.risk_level}
+              </p>
+            )}
           </div>
         </div>
+        )}
 
         {/* Fact Check - Wikipedia */}
+        {data.results?.factcheck?.metrics?.wikipedia && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="h-5 w-5 text-orange-400" />
             <h3 className="text-lg uppercase text-orange-400">Wikipedia Verification</h3>
           </div>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Verification Score</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.factcheck.metrics.wikipedia.external_verification_score.verification_score}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Fabrication Risk</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.factcheck.metrics.wikipedia.fabrication_risk_score.fabrication_risk_score.toFixed(1)}%
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {data.results.factcheck.metrics.wikipedia.fabrication_risk_score.risk_level}
-            </p>
+            {data.results?.factcheck?.metrics?.wikipedia?.external_verification_score?.verification_score !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Verification Score</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.factcheck.metrics.wikipedia.external_verification_score.verification_score}%
+                </span>
+              </div>
+            )}
+            {data.results?.factcheck?.metrics?.wikipedia?.fabrication_risk_score?.fabrication_risk_score !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Fabrication Risk</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.factcheck.metrics.wikipedia.fabrication_risk_score.fabrication_risk_score.toFixed(1)}%
+                </span>
+              </div>
+            )}
+            {data.results?.factcheck?.metrics?.wikipedia?.fabrication_risk_score?.risk_level && (
+              <p className="text-sm text-muted-foreground">
+                {data.results.factcheck.metrics.wikipedia.fabrication_risk_score.risk_level}
+              </p>
+            )}
           </div>
         </div>
+        )}
 
         {/* Sentiment Analysis */}
+        {data.results?.sentiment && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Scale className="h-5 w-5 text-pink-400" />
             <h3 className="text-lg uppercase text-pink-400">Sentiment & Bias</h3>
           </div>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Grok Polarity</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono flex items-center gap-1">
-                {data.results.sentiment.sentiment_analysis.grokipedia_average_polarity > 0 ? (
-                  <TrendingUp className="h-5 w-5 text-green-400" />
-                ) : (
-                  <TrendingDown className="h-5 w-5 text-red-400" />
-                )}
-                {data.results.sentiment.sentiment_analysis.grokipedia_average_polarity.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Wiki Polarity</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono flex items-center gap-1">
-                {data.results.sentiment.sentiment_analysis.wikipedia_average_polarity > 0 ? (
-                  <TrendingUp className="h-5 w-5 text-green-400" />
-                ) : (
-                  <TrendingDown className="h-5 w-5 text-red-400" />
-                )}
-                {data.results.sentiment.sentiment_analysis.wikipedia_average_polarity.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Sentiment Shifts</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.sentiment.sentiment_analysis.sentiment_shifts_count}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Grok Bias</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.sentiment.framing_analysis.grokipedia_bias_score.toFixed(3)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Wiki Bias</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.sentiment.framing_analysis.wikipedia_bias_score.toFixed(3)}
-              </span>
-            </div>
+            {data.results?.sentiment?.sentiment_analysis?.grokipedia_average_polarity !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Grok Polarity</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono flex items-center gap-1">
+                  {data.results.sentiment.sentiment_analysis.grokipedia_average_polarity > 0 ? (
+                    <TrendingUp className="h-5 w-5 text-green-400" />
+                  ) : (
+                    <TrendingDown className="h-5 w-5 text-red-400" />
+                  )}
+                  {data.results.sentiment.sentiment_analysis.grokipedia_average_polarity.toFixed(2)}
+                </span>
+              </div>
+            )}
+            {data.results?.sentiment?.sentiment_analysis?.wikipedia_average_polarity !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Wiki Polarity</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono flex items-center gap-1">
+                  {data.results.sentiment.sentiment_analysis.wikipedia_average_polarity > 0 ? (
+                    <TrendingUp className="h-5 w-5 text-green-400" />
+                  ) : (
+                    <TrendingDown className="h-5 w-5 text-red-400" />
+                  )}
+                  {data.results.sentiment.sentiment_analysis.wikipedia_average_polarity.toFixed(2)}
+                </span>
+              </div>
+            )}
+            {data.results?.sentiment?.sentiment_analysis?.sentiment_shifts_count !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Sentiment Shifts</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.sentiment.sentiment_analysis.sentiment_shifts_count}
+                </span>
+              </div>
+            )}
+            {data.results?.sentiment?.framing_analysis?.grokipedia_bias_score !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Grok Bias</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.sentiment.framing_analysis.grokipedia_bias_score.toFixed(3)}
+                </span>
+              </div>
+            )}
+            {data.results?.sentiment?.framing_analysis?.wikipedia_bias_score !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Wiki Bias</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.sentiment.framing_analysis.wikipedia_bias_score.toFixed(3)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
+        )}
 
         {/* Multimodal */}
+        {data.results?.multimodal && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Image className="h-5 w-5 text-teal-400" />
             <h3 className="text-lg uppercase text-teal-400">Multimodal Analysis</h3>
           </div>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Images Found</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.multimodal.summary.images_found}
-              </span>
-            </div>
-            {data.results.multimodal.summary.images_processed !== undefined && (
+            {data.results?.multimodal?.summary?.images_found !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Images Found</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.multimodal.summary.images_found}
+                </span>
+              </div>
+            )}
+            {data.results?.multimodal?.summary?.images_processed !== undefined && (
               <div className="flex justify-between items-center">
                 <span className="text-base text-muted-foreground">Images Processed</span>
                 <span className="text-xl font-bold text-yellow-500 font-mono">
@@ -808,13 +877,15 @@ export default function AnalysisResults({
                 </span>
               </div>
             )}
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">Videos Found</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.multimodal.summary.videos_found}
-              </span>
-            </div>
-            {data.results.multimodal.summary.text_chunks !== undefined && (
+            {data.results?.multimodal?.summary?.videos_found !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">Videos Found</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.multimodal.summary.videos_found}
+                </span>
+              </div>
+            )}
+            {data.results?.multimodal?.summary?.text_chunks !== undefined && (
               <div className="flex justify-between items-center">
                 <span className="text-base text-muted-foreground">Text Chunks</span>
                 <span className="text-xl font-bold text-yellow-500 font-mono">
@@ -822,13 +893,15 @@ export default function AnalysisResults({
                 </span>
               </div>
             )}
-            <div className="flex justify-between items-center">
-              <span className="text-base text-muted-foreground">MCI Score</span>
-              <span className="text-xl font-bold text-yellow-500 font-mono">
-                {data.results.multimodal.multimodal_consistency_index.mci_score.toFixed(1)}%
-              </span>
-            </div>
-            {data.results.multimodal.image_to_text_alignment && (
+            {data.results?.multimodal?.multimodal_consistency_index?.mci_score !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-base text-muted-foreground">MCI Score</span>
+                <span className="text-xl font-bold text-yellow-500 font-mono">
+                  {data.results.multimodal.multimodal_consistency_index.mci_score.toFixed(1)}%
+                </span>
+              </div>
+            )}
+            {data.results?.multimodal?.image_to_text_alignment?.image_relevance_score !== undefined && (
               <div className="flex justify-between items-center">
                 <span className="text-base text-muted-foreground">Image Alignment</span>
                 <span className="text-xl font-bold text-yellow-500 font-mono">
@@ -838,130 +911,169 @@ export default function AnalysisResults({
             )}
           </div>
         </div>
+        )}
           </div>
         </TabsContent>
 
         {/* Content Tab */}
         <TabsContent value="content" className="mt-6 space-y-6">
+          {data.results?.fetch && (
           <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
             <h3 className="text-xl uppercase text-blue-400 mb-4 flex items-center gap-2">
               <FileText className="h-5 w-5" />
               Content Fetching Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="text-base font-mono font-bold text-primary mb-4">Grokipedia</h4>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-base text-muted-foreground">Words</span>
-                    <span className="text-2xl font-bold text-yellow-500 font-mono">
-                      {data.results.fetch.grokipedia.word_count.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-base text-muted-foreground">Characters</span>
-                    <span className="text-2xl font-bold text-yellow-500 font-mono">
-                      {data.results.fetch.grokipedia.char_count.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-base text-muted-foreground">References</span>
-                    <span className="text-2xl font-bold text-yellow-500 font-mono">
-                      {data.results.fetch.grokipedia.references_count}
-                    </span>
-                  </div>
-                  {data.results.fetch.grokipedia.sections !== undefined && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-base text-muted-foreground">Sections</span>
-                      <span className="text-2xl font-bold text-yellow-500 font-mono">
-                        {data.results.fetch.grokipedia.sections}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-base font-mono font-bold text-orange-400 mb-4">Wikipedia</h4>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-base text-muted-foreground">Words</span>
-                    <span className="text-2xl font-bold text-yellow-500 font-mono">
-                      {data.results.fetch.wikipedia.word_count.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-base text-muted-foreground">Characters</span>
-                    <span className="text-2xl font-bold text-yellow-500 font-mono">
-                      {data.results.fetch.wikipedia.char_count.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-base text-muted-foreground">References</span>
-                    <span className="text-2xl font-bold text-yellow-500 font-mono">
-                      {data.results.fetch.wikipedia.references_count}
-                    </span>
+              {data.results?.fetch?.grokipedia && (
+                <div>
+                  <h4 className="text-base font-mono font-bold text-primary mb-4">Grokipedia</h4>
+                  <div className="space-y-4">
+                    {data.results.fetch.grokipedia.word_count !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-base text-muted-foreground">Words</span>
+                        <span className="text-2xl font-bold text-yellow-500 font-mono">
+                          {data.results.fetch.grokipedia.word_count.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {data.results.fetch.grokipedia.char_count !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-base text-muted-foreground">Characters</span>
+                        <span className="text-2xl font-bold text-yellow-500 font-mono">
+                          {data.results.fetch.grokipedia.char_count.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {data.results.fetch.grokipedia.references_count !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-base text-muted-foreground">References</span>
+                        <span className="text-2xl font-bold text-yellow-500 font-mono">
+                          {data.results.fetch.grokipedia.references_count}
+                        </span>
+                      </div>
+                    )}
+                    {data.results.fetch.grokipedia.sections !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-base text-muted-foreground">Sections</span>
+                        <span className="text-2xl font-bold text-yellow-500 font-mono">
+                          {data.results.fetch.grokipedia.sections}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
+              )}
+              {data.results?.fetch?.wikipedia && (
+                <div>
+                  <h4 className="text-base font-mono font-bold text-orange-400 mb-4">Wikipedia</h4>
+                  <div className="space-y-4">
+                    {data.results.fetch.wikipedia.word_count !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-base text-muted-foreground">Words</span>
+                        <span className="text-2xl font-bold text-yellow-500 font-mono">
+                          {data.results.fetch.wikipedia.word_count.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {data.results.fetch.wikipedia.char_count !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-base text-muted-foreground">Characters</span>
+                        <span className="text-2xl font-bold text-yellow-500 font-mono">
+                          {data.results.fetch.wikipedia.char_count.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {data.results.fetch.wikipedia.references_count !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-base text-muted-foreground">References</span>
+                        <span className="text-2xl font-bold text-yellow-500 font-mono">
+                          {data.results.fetch.wikipedia.references_count}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            {data.results.fetch.files && (
+            {data.results?.fetch?.files && (
               <div className="mt-4 pt-4 border-t border-input">
                 <h4 className="text-sm font-mono text-muted-foreground mb-2">Files</h4>
                 <div className="space-y-1">
-                  <p className="text-xs text-foreground">Grokipedia: {data.results.fetch.files.grokipedia}</p>
-                  <p className="text-xs text-foreground">Wikipedia: {data.results.fetch.files.wikipedia}</p>
+                  {data.results.fetch.files.grokipedia && (
+                    <p className="text-xs text-foreground">Grokipedia: {data.results.fetch.files.grokipedia}</p>
+                  )}
+                  {data.results.fetch.files.wikipedia && (
+                    <p className="text-xs text-foreground">Wikipedia: {data.results.fetch.files.wikipedia}</p>
+                  )}
                 </div>
               </div>
             )}
           </div>
+          )}
         </TabsContent>
 
         {/* Knowledge Triples Tab */}
         <TabsContent value="triples" className="mt-6 space-y-6">
+          {data.results?.triple && (
+            <>
           {/* Basic Stats */}
+          {data.results.triple.basic_stats && (
           <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
             <h3 className="text-xl uppercase text-purple-400 mb-6 flex items-center gap-2">
               <Database className="h-5 w-5" />
               Basic Statistics
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-              <div className="bg-black/50 border border-input rounded-xl p-5 text-center">
-                <p className="text-sm font-mono text-muted-foreground mb-2 uppercase tracking-wide">Total Triples</p>
-                <p className="text-3xl font-bold text-yellow-500 font-mono">
-                  {data.results.triple.basic_stats.total_triples.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-black/50 border border-input rounded-xl p-5 text-center">
-                <p className="text-sm font-mono text-muted-foreground mb-2 uppercase tracking-wide">Source A Triples</p>
-                <p className="text-3xl font-bold text-yellow-500 font-mono">
-                  {data.results.triple.basic_stats.source_a_triples.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-black/50 border border-input rounded-xl p-5 text-center">
-                <p className="text-sm font-mono text-muted-foreground mb-2 uppercase tracking-wide">Source B Triples</p>
-                <p className="text-3xl font-bold text-yellow-500 font-mono">
-                  {data.results.triple.basic_stats.source_b_triples.toLocaleString()}
-                </p>
-              </div>
+              {data.results?.triple?.basic_stats?.total_triples !== undefined && (
+                <div className="bg-black/50 border border-input rounded-xl p-5 text-center">
+                  <p className="text-sm font-mono text-muted-foreground mb-2 uppercase tracking-wide">Total Triples</p>
+                  <p className="text-3xl font-bold text-yellow-500 font-mono">
+                    {data.results.triple.basic_stats.total_triples.toLocaleString()}
+                  </p>
+                </div>
+              )}
+              {data.results?.triple?.basic_stats?.source_a_triples !== undefined && (
+                <div className="bg-black/50 border border-input rounded-xl p-5 text-center">
+                  <p className="text-sm font-mono text-muted-foreground mb-2 uppercase tracking-wide">Source A Triples</p>
+                  <p className="text-3xl font-bold text-yellow-500 font-mono">
+                    {data.results.triple.basic_stats.source_a_triples.toLocaleString()}
+                  </p>
+                </div>
+              )}
+              {data.results?.triple?.basic_stats?.source_b_triples !== undefined && (
+                <div className="bg-black/50 border border-input rounded-xl p-5 text-center">
+                  <p className="text-sm font-mono text-muted-foreground mb-2 uppercase tracking-wide">Source B Triples</p>
+                  <p className="text-3xl font-bold text-yellow-500 font-mono">
+                    {data.results.triple.basic_stats.source_b_triples.toLocaleString()}
+                  </p>
+                </div>
+              )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-input">
-              <div className="bg-black/50 border border-input rounded-xl p-5 text-center">
-                <p className="text-sm font-mono text-muted-foreground mb-2 uppercase tracking-wide">Avg Similarity</p>
-                <p className="text-2xl font-bold text-yellow-500 font-mono">
-                  {(data.results.triple.semantic_similarity.average_similarity * 100).toFixed(1)}%
-                </p>
+            {(data.results?.triple?.semantic_similarity?.average_similarity !== undefined || data.results?.triple?.semantic_similarity?.max_similarity !== undefined) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-input">
+                {data.results?.triple?.semantic_similarity?.average_similarity !== undefined && (
+                  <div className="bg-black/50 border border-input rounded-xl p-5 text-center">
+                    <p className="text-sm font-mono text-muted-foreground mb-2 uppercase tracking-wide">Avg Similarity</p>
+                    <p className="text-2xl font-bold text-yellow-500 font-mono">
+                      {(data.results.triple.semantic_similarity.average_similarity * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                )}
+                {data.results?.triple?.semantic_similarity?.max_similarity !== undefined && (
+                  <div className="bg-black/50 border border-input rounded-xl p-5 text-center">
+                    <p className="text-sm font-mono text-muted-foreground mb-2 uppercase tracking-wide">Max Similarity</p>
+                    <p className="text-2xl font-bold text-yellow-500 font-mono">
+                      {(data.results.triple.semantic_similarity.max_similarity * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="bg-black/50 border border-input rounded-xl p-5 text-center">
-                <p className="text-sm font-mono text-muted-foreground mb-2 uppercase tracking-wide">Max Similarity</p>
-                <p className="text-2xl font-bold text-yellow-500 font-mono">
-                  {(data.results.triple.semantic_similarity.max_similarity * 100).toFixed(1)}%
-                </p>
-              </div>
-            </div>
+            )}
           </div>
+          )}
 
           {/* Contradictions List */}
-          {data.results.triple.contradictions.contradictions.length > 0 && (
+          {data.results?.triple?.contradictions?.contradictions && data.results.triple.contradictions.contradictions.length > 0 && (
             <div className="bg-black/90 backdrop-blur-sm border border-yellow-500/30 rounded-2xl p-6">
               <h3 className="text-xl uppercase text-yellow-500 mb-6 flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
@@ -998,7 +1110,7 @@ export default function AnalysisResults({
           )}
 
           {/* Triple Overlap Details */}
-          {data.results.triple.triple_overlap && (
+          {data.results?.triple?.triple_overlap && (
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
               <h3 className="text-xl uppercase text-purple-400 mb-6 flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
@@ -1040,7 +1152,7 @@ export default function AnalysisResults({
           )}
 
           {/* Graph Embeddings */}
-          {data.results.triple.graph_embeddings && (
+          {data.results?.triple?.graph_embeddings && (
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
               <h3 className="text-xl uppercase text-purple-400 mb-6 flex items-center gap-2">
                 <Brain className="h-5 w-5" />
@@ -1075,7 +1187,7 @@ export default function AnalysisResults({
           )}
 
           {/* Graph Density & Entity Coherence */}
-          {data.results.triple.graph_density && data.results.triple.entity_coherence && (
+          {data.results?.triple?.graph_density && data.results?.triple?.entity_coherence && (
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
               <h3 className="text-xl uppercase text-purple-400 mb-6 flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
@@ -1143,7 +1255,7 @@ export default function AnalysisResults({
           )}
 
           {/* Provenance Analysis */}
-          {data.results.triple.provenance_analysis && (
+          {data.results?.triple?.provenance_analysis && (
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
               <h3 className="text-xl uppercase text-purple-400 mb-6 flex items-center gap-2">
                 <FileText className="h-5 w-5" />
@@ -1209,11 +1321,16 @@ export default function AnalysisResults({
               </div>
             </div>
           )}
+            </>
+          )}
         </TabsContent>
 
         {/* Semantic Drift Tab */}
         <TabsContent value="semantic" className="mt-6 space-y-6">
+          {data.results?.semanticdrift && (
+            <>
           {/* Overall Drift Score */}
+          {data.results.semanticdrift.semantic_drift_score && (
           <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
             <h3 className="text-xl uppercase text-cyan-400 mb-6 flex items-center gap-2">
               <Brain className="h-5 w-5" />
@@ -1240,9 +1357,10 @@ export default function AnalysisResults({
               </p>
             </div>
           </div>
+          )}
 
           {/* Component Scores */}
-          {data.results.semanticdrift.semantic_drift_score.component_scores && (
+          {data.results?.semanticdrift?.semantic_drift_score?.component_scores && (
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
               <h3 className="text-xl uppercase text-cyan-400 mb-6 flex items-center gap-2">
                 <Brain className="h-5 w-5" />
@@ -1326,7 +1444,7 @@ export default function AnalysisResults({
           )}
 
           {/* Knowledge Graph Embeddings */}
-          {data.results.semanticdrift.knowledge_graph_embeddings && (
+          {data.results?.semanticdrift?.knowledge_graph_embeddings && (
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
               <h3 className="text-xl uppercase text-cyan-400 mb-6 flex items-center gap-2">
                 <Brain className="h-5 w-5" />
@@ -1355,12 +1473,16 @@ export default function AnalysisResults({
               </div>
             </div>
           )}
-
+            </>
+          )}
         </TabsContent>
 
         {/* Fact Check Tab */}
         <TabsContent value="factcheck" className="mt-6 space-y-6">
+          {data.results?.factcheck && (
+            <>
           {/* Summary */}
+          {data.results.factcheck.summary && (
           <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
             <h3 className="text-xl uppercase text-green-400 mb-6 flex items-center gap-2">
               <Shield className="h-5 w-5" />
@@ -1387,9 +1509,10 @@ export default function AnalysisResults({
               </div>
             </div>
           </div>
+          )}
 
           {/* Detailed Metrics */}
-          {data.results.factcheck.metrics.grokipedia.unsourced_claim_ratio && (
+          {data.results?.factcheck?.metrics?.grokipedia?.unsourced_claim_ratio && (
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
               <h3 className="text-xl uppercase text-green-400 mb-6 flex items-center gap-2">
                 <Shield className="h-5 w-5" />
@@ -1469,11 +1592,16 @@ export default function AnalysisResults({
               </div>
             </div>
           )}
+            </>
+          )}
         </TabsContent>
 
         {/* Sentiment & Bias Tab */}
         <TabsContent value="sentiment" className="mt-6 space-y-6">
+          {data.results?.sentiment && (
+            <>
           {/* Overview */}
+          {data.results?.sentiment?.sentiment_analysis && (
           <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
             <h3 className="text-xl uppercase text-pink-400 mb-6 flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
@@ -1510,8 +1638,10 @@ export default function AnalysisResults({
               </div>
             </div>
           </div>
+          )}
 
           {/* Bias Scores */}
+          {data.results?.sentiment?.framing_analysis && (
           <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
             <h3 className="text-xl uppercase text-pink-400 mb-6 flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
@@ -1548,9 +1678,10 @@ export default function AnalysisResults({
               </div>
             )}
           </div>
+          )}
 
           {/* Sentiment Shifts */}
-          {data.results.sentiment.sentiment_analysis.sentiment_shifts && data.results.sentiment.sentiment_analysis.sentiment_shifts.length > 0 && (
+          {data.results?.sentiment?.sentiment_analysis?.sentiment_shifts && data.results.sentiment.sentiment_analysis.sentiment_shifts.length > 0 && (
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
               <h3 className="text-xl uppercase text-pink-400 mb-6 flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
@@ -1580,11 +1711,16 @@ export default function AnalysisResults({
               </div>
             </div>
           )}
+            </>
+          )}
         </TabsContent>
 
         {/* Multimodal Tab */}
         <TabsContent value="multimodal" className="mt-6 space-y-6">
+          {data.results?.multimodal && (
+            <>
           {/* Summary */}
+          {data.results.multimodal.summary && (
           <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
             <h3 className="text-xl uppercase text-teal-400 mb-6 flex items-center gap-2">
               <Image className="h-5 w-5" />
@@ -1629,9 +1765,10 @@ export default function AnalysisResults({
               </div>
             </div>
           </div>
+          )}
 
           {/* Textual Similarity */}
-          {data.results.multimodal.textual_similarity && (
+          {data.results?.multimodal?.textual_similarity && (
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
               <h3 className="text-xl uppercase text-teal-400 mb-6 flex items-center gap-2">
                 <Image className="h-5 w-5" />
@@ -1693,32 +1830,40 @@ export default function AnalysisResults({
               </div>
             </div>
           )}
+            </>
+          )}
         </TabsContent>
 
         {/* AI Judge Tab */}
         <TabsContent value="judge" className="mt-6">
+          {data.results?.judging && (
+            <>
           <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
             <h3 className="text-xl uppercase text-primary mb-4 flex items-center gap-2">
               <Eye className="h-5 w-5" />
               AI Judge Report
             </h3>
-            <div className="flex items-center gap-4 mb-6">
-              <p className="text-sm text-muted-foreground">
-                Model: <span className="text-foreground font-mono">{data.results.judging.model}</span>
-              </p>
-              {data.results.judging.report_length !== undefined && (
+            {data.results.judging.model && (
+              <div className="flex items-center gap-4 mb-6">
                 <p className="text-sm text-muted-foreground">
-                  Length: <span className="text-foreground font-mono">{data.results.judging.report_length.toLocaleString()} chars</span>
+                  Model: <span className="text-foreground font-mono">{data.results.judging.model}</span>
                 </p>
-              )}
-            </div>
-            <div className="bg-black/50 border border-input rounded-lg p-6 max-h-[600px] overflow-y-auto">
-              <MarkdownRenderer content={data.results.judging.report_preview} />
-            </div>
+                {data.results.judging.report_length !== undefined && (
+                  <p className="text-sm text-muted-foreground">
+                    Length: <span className="text-foreground font-mono">{data.results.judging.report_length.toLocaleString()} chars</span>
+                  </p>
+                )}
+              </div>
+            )}
+            {data.results.judging.report_preview && (
+              <div className="bg-black/50 border border-input rounded-lg p-6 max-h-[600px] overflow-y-auto">
+                <MarkdownRenderer content={data.results.judging.report_preview || ""} />
+              </div>
+            )}
             {data.results.judging.full_report && (
               <details className="mt-6">
                 <summary className="text-base font-mono text-primary cursor-pointer hover:text-yellow-500 transition-colors py-2">
-                  View Full Report ({data.results.judging.report_length?.toLocaleString() || "N/A"} characters)
+                  View Full Report ({data.results.judging.report_length ? data.results.judging.report_length.toLocaleString() : "N/A"} characters)
                 </summary>
                 <div className="bg-black/50 border border-input rounded-lg p-6 mt-4 max-h-[600px] overflow-y-auto">
                   <MarkdownRenderer content={data.results.judging.full_report} />
@@ -1726,6 +1871,8 @@ export default function AnalysisResults({
               </details>
             )}
           </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>
