@@ -61,7 +61,7 @@ export default function MarketplacePage() {
   };
 
   return (
-    <div className="min-h-screen pt-32 pb-16 px-4">
+    <div className="min-h-screen pt-36 pb-16 px-4">
       <div className="max-w-7xl mx-auto">
         <h1 className="font-sentient text-5xl font-light mb-4 text-center">
           <i>Marketplace</i>

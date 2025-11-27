@@ -1,129 +1,172 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useWallet } from "@/contexts/wallet-context";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, CheckCircle, AlertTriangle, TrendingUp, TrendingDown, BarChart3, FileText, Brain, Image, Scale, Plus, X } from "lucide-react";
+import { v4 as uuidv4 } from "uuid";
 
-interface CategoryMetric {
-  name: string;
-  value: number;
-}
-
-interface NotableInstance {
-  category: string;
-  content: string;
+interface AnalysisResult {
+  status: string;
+  analysis_id: string;
+  topic: string;
+  steps_completed: string[];
+  results: {
+    fetch: {
+      status: string;
+      grokipedia: {
+        word_count: number;
+        char_count: number;
+        references_count: number;
+      };
+      wikipedia: {
+        word_count: number;
+        char_count: number;
+        references_count: number;
+      };
+    };
+    triple: {
+      status: string;
+      basic_stats: {
+        source_a_triples: number;
+        source_b_triples: number;
+        total_triples: number;
+      };
+      semantic_similarity: {
+        average_similarity: number;
+        max_similarity: number;
+      };
+      contradictions: {
+        contradiction_count: number;
+        contradictions: Array<{
+          subject: string;
+          predicate: string;
+          source_a_object: string;
+          source_b_object: string;
+        }>;
+      };
+    };
+    semanticdrift: {
+      status: string;
+      semantic_drift_score: {
+        overall_drift_score: number;
+        drift_percentage: number;
+        interpretation: string;
+      };
+    };
+    factcheck: {
+      status: string;
+      summary: {
+        total_contradictions: number;
+        grok_claims_verified: number;
+        wiki_claims_verified: number;
+      };
+      metrics: {
+        grokipedia: {
+          fabrication_risk_score: {
+            fabrication_risk_score: number;
+            risk_level: string;
+          };
+          external_verification_score: {
+            verification_score: number;
+          };
+        };
+        wikipedia: {
+          fabrication_risk_score: {
+            fabrication_risk_score: number;
+            risk_level: string;
+          };
+          external_verification_score: {
+            verification_score: number;
+          };
+        };
+      };
+    };
+    sentiment: {
+      status: string;
+      sentiment_analysis: {
+        grokipedia_average_polarity: number;
+        wikipedia_average_polarity: number;
+        sentiment_shifts_count: number;
+      };
+      framing_analysis: {
+        grokipedia_bias_score: number;
+        wikipedia_bias_score: number;
+      };
+      political_leaning: {
+        grokipedia: string;
+        wikipedia: string;
+      };
+    };
+    multimodal: {
+      status: string;
+      summary: {
+        images_found: number;
+        images_processed: number;
+        videos_found: number;
+      };
+      multimodal_consistency_index: {
+        mci_score: number;
+      };
+    };
+    judging: {
+      status: string;
+      model: string;
+      report_preview: string;
+    };
+  };
+  execution_time_seconds: number;
 }
 
 export default function ContributePage() {
-  const router = useRouter();
   const { walletAddress } = useWallet();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
-  // Form state (pre-filled for testing)
-  const [topicId, setTopicId] = useState("artificial-intelligence-2024");
-  const [title, setTitle] = useState("Artificial Intelligence in 2024");
-  const [summary, setSummary] = useState("A comprehensive analysis of AI developments in 2024, including breakthrough models, ethical considerations, and real-world applications. This knowledge asset covers major advancements in large language models, computer vision, and autonomous systems, while addressing concerns about AI safety, bias, and regulation.");
-  const [trustScore, setTrustScore] = useState(85);
-  const [primarySource, setPrimarySource] = useState("AI Research Database 2024");
-  const [secondarySource, setSecondarySource] = useState("Technology Industry Reports");
+  // Form state
+  const [title, setTitle] = useState("Cattle");
+  const [sources, setSources] = useState<string[]>([
+    "https://grok.com/grokipedia/cattle",
+    "https://en.wikipedia.org/wiki/Cattle",
+  ]);
   const [priceUsd, setPriceUsd] = useState("0.10");
-  
-  const [categoryMetrics, setCategoryMetrics] = useState<CategoryMetric[]>([
-    { name: "accuracy", value: 95 },
-    { name: "citations", value: 42 },
-    { name: "peer-reviews", value: 8 },
-  ]);
-  
-  const [notableInstances, setNotableInstances] = useState<NotableInstance[]>([
-    { 
-      category: "breakthrough", 
-      content: "GPT-4 and similar models achieved human-level performance on various professional exams and creative tasks." 
-    },
-    { 
-      category: "application", 
-      content: "AI-powered medical diagnosis systems demonstrated 98% accuracy in detecting certain cancers from imaging data." 
-    },
-    { 
-      category: "concern", 
-      content: "Deepfake technology raised significant concerns about misinformation and digital identity verification." 
-    },
-  ]);
 
-  const addCategoryMetric = () => {
-    setCategoryMetrics([...categoryMetrics, { name: "", value: 0 }]);
+  const addSource = () => {
+    setSources([...sources, ""]);
   };
 
-  const removeCategoryMetric = (index: number) => {
-    if (categoryMetrics.length > 1) {
-      setCategoryMetrics(categoryMetrics.filter((_, i) => i !== index));
+  const removeSource = (index: number) => {
+    if (sources.length > 1) {
+      setSources(sources.filter((_, i) => i !== index));
     }
   };
 
-  const updateCategoryMetric = (index: number, field: "name" | "value", value: string | number) => {
-    const updated = [...categoryMetrics];
-    if (field === "name") {
-      updated[index].name = String(value);
-    } else {
-      updated[index].value = Number(value);
-    }
-    setCategoryMetrics(updated);
+  const updateSource = (index: number, value: string) => {
+    const updated = [...sources];
+    updated[index] = value;
+    setSources(updated);
   };
 
-  const addNotableInstance = () => {
-    setNotableInstances([...notableInstances, { category: "", content: "" }]);
-  };
-
-  const removeNotableInstance = (index: number) => {
-    if (notableInstances.length > 1) {
-      setNotableInstances(notableInstances.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateNotableInstance = (index: number, field: "category" | "content", value: string) => {
-    const updated = [...notableInstances];
-    updated[index][field] = value;
-    setNotableInstances(updated);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccess(false);
+    setAnalysisResult(null);
 
     try {
-      // Convert categoryMetrics array to object
-      const metricsObj: Record<string, number> = {};
-      categoryMetrics.forEach((metric) => {
-        if (metric.name && metric.value !== undefined) {
-          metricsObj[metric.name] = parseInt(String(metric.value));
-        }
-      });
+      const topicId = `topic_${uuidv4()}`;
 
-      // Filter out empty notable instances
-      const filteredInstances = notableInstances.filter(
-        (inst) => inst.content && inst.category
-      );
+      // Filter out empty sources
+      const validSources = sources.filter((source) => source.trim() !== "");
 
       const payload = {
         topicId,
-        title: title || topicId,
-        summary,
-        trustScore: parseInt(String(trustScore)),
-        categoryMetrics: metricsObj,
-        notableInstances: filteredInstances,
-        primarySource,
-        secondarySource,
-        contributionType: "User contributed",
-        walletAddress: walletAddress,
-        priceUsd: parseFloat(priceUsd),
+        topic: title,
+        sources: validSources,
       };
 
-      const response = await fetch("/api/dkgpedia/publish", {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -133,305 +176,476 @@ export default function ContributePage() {
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
-        setSuccess(true);
-        // Reset form after 2 seconds and redirect
-        setTimeout(() => {
-          router.push(`/asset/${encodeURIComponent(topicId)}`);
-        }, 2000);
+      if (response.ok && data.status === "success") {
+        setAnalysisResult(data);
       } else {
-        setError(data.error || "Failed to publish knowledge asset");
+        setError(data.error || "Failed to analyze topic");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to publish knowledge asset");
+      setError(err instanceof Error ? err.message : "Failed to analyze topic");
     } finally {
       setLoading(false);
     }
   };
 
+  const getScoreColor = (score: number, inverse: boolean = false) => {
+    if (inverse) {
+      if (score < 20) return "text-green-400";
+      if (score < 50) return "text-yellow-400";
+      return "text-red-400";
+    }
+    if (score >= 80) return "text-green-400";
+    if (score >= 50) return "text-yellow-400";
+    return "text-red-400";
+  };
+
+  const getDriftColor = (percentage: number) => {
+    if (percentage < 50) return "text-green-400";
+    if (percentage < 100) return "text-yellow-400";
+    return "text-red-400";
+  };
+
   return (
-    <div className="min-h-screen pt-32 pb-16 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen pt-36 pb-16 px-4">
+      <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="font-sentient text-5xl font-light mb-4">
+          <h1 className="font-sentient text-5xl font-light mb-4 text-center">
             <i>Contribute</i>
           </h1>
-          <p className="text-base font-mono text-muted-foreground">
-            Share your knowledge with the DKG community
+          <p className="text-base font-mono text-muted-foreground text-center">
+            Help Us Create a More Accurate Grokipedia, one search term at a time.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
-          <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6 space-y-6">
-            <h2 className="text-xl font-mono uppercase text-primary">Basic Information</h2>
+        {!analysisResult ? (
+          <form onSubmit={handleAnalyze} className="space-y-6 max-w-2xl mx-auto">
+            {/* Basic Information */}
+            <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6 space-y-6">
+              <h2 className="text-xl font-mono uppercase text-primary">Basic Information</h2>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-mono text-muted-foreground mb-2">
-                  Topic ID *
-                </label>
-                <input
-                  type="text"
-                  value={topicId}
-                  onChange={(e) => setTopicId(e.target.value)}
-                  placeholder="e.g., artificial-intelligence-2024"
-                  required
-                  className="w-full bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-mono text-muted-foreground mb-2">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Optional title for the knowledge asset"
-                  className="w-full bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-mono text-muted-foreground mb-2">
-                  Summary *
-                </label>
-                <textarea
-                  value={summary}
-                  onChange={(e) => setSummary(e.target.value)}
-                  placeholder="Comprehensive summary of findings..."
-                  required
-                  rows={6}
-                  className="w-full bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-mono text-muted-foreground mb-2">
-                  Trust Score: {trustScore}
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={trustScore}
-                  onChange={(e) => setTrustScore(parseInt(e.target.value))}
-                  className="w-full h-2 bg-black/50 rounded-lg appearance-none cursor-pointer accent-primary"
-                />
-                <div className="flex justify-between text-xs font-mono text-muted-foreground mt-1">
-                  <span>0</span>
-                  <span>50</span>
-                  <span>100</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Sources */}
-          <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6 space-y-6">
-            <h2 className="text-xl font-mono uppercase text-primary">Sources</h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-mono text-muted-foreground mb-2">
-                  Primary Source *
-                </label>
-                <input
-                  type="text"
-                  value={primarySource}
-                  onChange={(e) => setPrimarySource(e.target.value)}
-                  placeholder="e.g., Research Database 2024"
-                  required
-                  className="w-full bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-mono text-muted-foreground mb-2">
-                  Secondary Source *
-                </label>
-                <input
-                  type="text"
-                  value={secondarySource}
-                  onChange={(e) => setSecondarySource(e.target.value)}
-                  placeholder="e.g., Historical Records"
-                  required
-                  className="w-full bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Category Metrics */}
-          <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-mono uppercase text-primary">Category Metrics</h2>
-              <Button
-                type="button"
-                onClick={addCategoryMetric}
-                className="bg-primary/10 hover:bg-primary/20 text-primary border-primary/30"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Metric
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              {categoryMetrics.map((metric, index) => (
-                <div key={index} className="flex gap-3">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-mono text-muted-foreground mb-2">
+                    Title / Topic *
+                  </label>
                   <input
                     type="text"
-                    placeholder="Category name (e.g., accuracy)"
-                    value={metric.name}
-                    onChange={(e) => updateCategoryMetric(index, "name", e.target.value)}
-                    className="flex-1 bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g., Cattle, Artificial Intelligence, etc."
+                    required
+                    className="w-full bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
-                  <input
-                    type="number"
-                    placeholder="Count"
-                    value={metric.value}
-                    onChange={(e) => updateCategoryMetric(index, "value", parseInt(e.target.value) || 0)}
-                    className="w-32 bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                  {categoryMetrics.length > 1 && (
-                    <Button
-                      type="button"
-                      onClick={() => removeCategoryMetric(index)}
-                      className="bg-transparent border-transparent hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Notable Instances */}
-          <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-mono uppercase text-primary">Notable Instances</h2>
-              <Button
-                type="button"
-                onClick={addNotableInstance}
-                className="bg-primary/10 hover:bg-primary/20 text-primary border-primary/30"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Instance
-              </Button>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              {notableInstances.map((instance, index) => (
-                <div key={index} className="bg-black/50 border border-input/50 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
+            {/* Sources */}
+            <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-mono uppercase text-primary">Sources</h2>
+                <Button
+                  type="button"
+                  onClick={addSource}
+                  className="bg-primary/10 hover:bg-primary/20 text-primary border-primary/30"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Source
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {sources.map((source, index) => (
+                  <div key={index} className="flex gap-3">
                     <input
                       type="text"
-                      placeholder="Category"
-                      value={instance.category}
-                      onChange={(e) => updateNotableInstance(index, "category", e.target.value)}
-                      className="flex-1 bg-black/50 border border-input rounded-lg px-4 py-2 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      value={source}
+                      onChange={(e) => updateSource(index, e.target.value)}
+                      placeholder="e.g., https://grok.com/grokipedia/topic"
+                      required
+                      className="flex-1 bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
-                    {notableInstances.length > 1 && (
+                    {sources.length > 1 && (
                       <Button
                         type="button"
-                        onClick={() => removeNotableInstance(index)}
-                        className="ml-3 bg-transparent border-transparent hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => removeSource(index)}
+                        className="bg-transparent border-transparent hover:bg-destructive/10 hover:text-destructive"
                       >
                         <X className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
-                  <textarea
-                    placeholder="Content"
-                    value={instance.content}
-                    onChange={(e) => updateNotableInstance(index, "content", e.target.value)}
-                    rows={3}
-                    className="w-full bg-black/50 border border-input rounded-lg px-4 py-2 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                ))}
+              </div>
+              <p className="text-xs font-mono text-muted-foreground">
+                Add at least one source URL to support your contribution
+              </p>
+            </div>
+
+            {/* Payment Settings */}
+            <div className="bg-gradient-to-br from-yellow-500/10 via-black/90 to-yellow-500/5 backdrop-blur-sm border-2 border-yellow-500/30 rounded-2xl p-6 space-y-6">
+              <h2 className="text-xl font-mono uppercase text-yellow-500">Payment Settings</h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-mono text-muted-foreground mb-2">
+                    Wallet Address (Auto-filled)
+                  </label>
+                  <input
+                    type="text"
+                    value={walletAddress || ""}
+                    disabled
+                    className="w-full bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground/50 font-mono cursor-not-allowed"
                   />
                 </div>
-              ))}
+
+                <div>
+                  <label className="block text-sm font-mono text-muted-foreground mb-2">
+                    Price (USD) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-yellow-500 font-mono">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={priceUsd}
+                      onChange={(e) => setPriceUsd(e.target.value)}
+                      placeholder="0.10"
+                      required
+                      className="w-full bg-black/50 border border-yellow-500/30 rounded-lg pl-8 pr-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                    />
+                  </div>
+                  <p className="text-xs font-mono text-muted-foreground mt-2">
+                    Users will pay this amount to access your analysis
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Payment Settings */}
-          <div className="bg-gradient-to-br from-yellow-500/10 via-black/90 to-yellow-500/5 backdrop-blur-sm border-2 border-yellow-500/30 rounded-2xl p-6 space-y-6">
-            <h2 className="text-xl font-mono uppercase text-yellow-500">Payment Settings</h2>
+            {/* Error Message */}
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+                <p className="text-sm font-mono text-destructive">{error}</p>
+              </div>
+            )}
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-mono text-muted-foreground mb-2">
-                  Wallet Address (Auto-filled)
-                </label>
-                <input
-                  type="text"
-                  value={walletAddress || ""}
-                  disabled
-                  className="w-full bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground/50 font-mono cursor-not-allowed"
-                />
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-primary hover:bg-primary/90 text-black font-bold font-mono text-lg py-6"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                "🔍 Analyze Topic"
+              )}
+            </Button>
+          </form>
+        ) : (
+          /* Analysis Results Display */
+          <div className="space-y-6 max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="bg-black/90 backdrop-blur-sm border border-primary/30 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-3xl font-sentient font-light text-primary">
+                    Analysis Complete
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Topic: <span className="text-foreground">{analysisResult.topic}</span>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Analysis ID</p>
+                  <p className="text-sm text-foreground/70">{analysisResult.analysis_id}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {analysisResult.steps_completed.map((step) => (
+                  <span
+                    key={step}
+                    className="px-3 py-1 bg-primary/10 border border-primary/30 rounded-full text-xs text-primary"
+                  >
+                    ✓ {step}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-4">
+                Completed in {analysisResult.execution_time_seconds.toFixed(2)}s
+              </p>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Fetch Stats */}
+              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <FileText className="h-5 w-5 text-blue-400" />
+                  <h3 className="text-lg uppercase text-blue-400">Content Fetched</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Grokipedia</span>
+                    <span className="text-lg text-foreground">
+                      {analysisResult.results.fetch.grokipedia.word_count.toLocaleString()} words
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Wikipedia</span>
+                    <span className="text-lg text-foreground">
+                      {analysisResult.results.fetch.wikipedia.word_count.toLocaleString()} words
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">References</span>
+                    <span className="text-lg text-foreground">
+                      {analysisResult.results.fetch.grokipedia.references_count + analysisResult.results.fetch.wikipedia.references_count}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-mono text-muted-foreground mb-2">
-                  Price (USD) *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-yellow-500 font-mono">
-                    $
-                  </span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={priceUsd}
-                    onChange={(e) => setPriceUsd(e.target.value)}
-                    placeholder="0.10"
-                    required
-                    className="w-full bg-black/50 border border-yellow-500/30 rounded-lg pl-8 pr-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  />
+              {/* Triple Analysis */}
+              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="h-5 w-5 text-purple-400" />
+                  <h3 className="text-lg uppercase text-purple-400">Knowledge Triples</h3>
                 </div>
-                <p className="text-xs font-mono text-muted-foreground mt-2">
-                  Users will pay this amount to access your knowledge asset
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Total Triples</span>
+                    <span className="text-lg text-foreground">
+                      {analysisResult.results.triple.basic_stats.total_triples.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Avg Similarity</span>
+                    <span className="text-lg text-foreground">
+                      {(analysisResult.results.triple.semantic_similarity.average_similarity * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Contradictions</span>
+                    <span className={`text-lg ${analysisResult.results.triple.contradictions.contradiction_count > 0 ? "text-yellow-400" : "text-green-400"}`}>
+                      {analysisResult.results.triple.contradictions.contradiction_count}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Semantic Drift */}
+              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Brain className="h-5 w-5 text-cyan-400" />
+                  <h3 className="text-lg uppercase text-cyan-400">Semantic Drift</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Drift Score</span>
+                    <span className={`text-lg ${getDriftColor(analysisResult.results.semanticdrift.semantic_drift_score.drift_percentage)}`}>
+                      {analysisResult.results.semanticdrift.semantic_drift_score.overall_drift_score.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Drift %</span>
+                    <span className={`text-lg ${getDriftColor(analysisResult.results.semanticdrift.semantic_drift_score.drift_percentage)}`}>
+                      {analysisResult.results.semanticdrift.semantic_drift_score.drift_percentage.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {analysisResult.results.semanticdrift.semantic_drift_score.interpretation}
+                  </p>
+                </div>
+              </div>
+
+              {/* Fact Check - Grokipedia */}
+              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <CheckCircle className="h-5 w-5 text-green-400" />
+                  <h3 className="text-lg uppercase text-green-400">Grokipedia Verification</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Verification Score</span>
+                    <span className={`text-lg ${getScoreColor(analysisResult.results.factcheck.metrics.grokipedia.external_verification_score.verification_score)}`}>
+                      {analysisResult.results.factcheck.metrics.grokipedia.external_verification_score.verification_score}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Fabrication Risk</span>
+                    <span className={`text-lg ${getScoreColor(analysisResult.results.factcheck.metrics.grokipedia.fabrication_risk_score.fabrication_risk_score, true)}`}>
+                      {analysisResult.results.factcheck.metrics.grokipedia.fabrication_risk_score.fabrication_risk_score.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {analysisResult.results.factcheck.metrics.grokipedia.fabrication_risk_score.risk_level}
+                  </p>
+                </div>
+              </div>
+
+              {/* Fact Check - Wikipedia */}
+              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertTriangle className="h-5 w-5 text-orange-400" />
+                  <h3 className="text-lg uppercase text-orange-400">Wikipedia Verification</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Verification Score</span>
+                    <span className={`text-lg ${getScoreColor(analysisResult.results.factcheck.metrics.wikipedia.external_verification_score.verification_score)}`}>
+                      {analysisResult.results.factcheck.metrics.wikipedia.external_verification_score.verification_score}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Fabrication Risk</span>
+                    <span className={`text-lg ${getScoreColor(analysisResult.results.factcheck.metrics.wikipedia.fabrication_risk_score.fabrication_risk_score, true)}`}>
+                      {analysisResult.results.factcheck.metrics.wikipedia.fabrication_risk_score.fabrication_risk_score.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {analysisResult.results.factcheck.metrics.wikipedia.fabrication_risk_score.risk_level}
+                  </p>
+                </div>
+              </div>
+
+              {/* Sentiment Analysis */}
+              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Scale className="h-5 w-5 text-pink-400" />
+                  <h3 className="text-lg uppercase text-pink-400">Sentiment & Bias</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Grok Polarity</span>
+                    <span className="text-lg text-foreground flex items-center gap-1">
+                      {analysisResult.results.sentiment.sentiment_analysis.grokipedia_average_polarity > 0 ? (
+                        <TrendingUp className="h-4 w-4 text-green-400" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-red-400" />
+                      )}
+                      {analysisResult.results.sentiment.sentiment_analysis.grokipedia_average_polarity.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Wiki Polarity</span>
+                    <span className="text-lg text-foreground flex items-center gap-1">
+                      {analysisResult.results.sentiment.sentiment_analysis.wikipedia_average_polarity > 0 ? (
+                        <TrendingUp className="h-4 w-4 text-green-400" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-red-400" />
+                      )}
+                      {analysisResult.results.sentiment.sentiment_analysis.wikipedia_average_polarity.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Sentiment Shifts</span>
+                    <span className="text-lg text-foreground">
+                      {analysisResult.results.sentiment.sentiment_analysis.sentiment_shifts_count}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Multimodal */}
+              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Image className="h-5 w-5 text-teal-400" />
+                  <h3 className="text-lg uppercase text-teal-400">Multimodal Analysis</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Images Found</span>
+                    <span className="text-lg text-foreground">
+                      {analysisResult.results.multimodal.summary.images_found}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Videos Found</span>
+                    <span className="text-lg text-foreground">
+                      {analysisResult.results.multimodal.summary.videos_found}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">MCI Score</span>
+                    <span className={`text-lg ${getScoreColor(analysisResult.results.multimodal.multimodal_consistency_index.mci_score)}`}>
+                      {analysisResult.results.multimodal.multimodal_consistency_index.mci_score.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Contradictions List */}
+            {analysisResult.results.triple.contradictions.contradictions.length > 0 && (
+              <div className="bg-black/90 backdrop-blur-sm border border-yellow-500/30 rounded-2xl p-6">
+                <h3 className="text-xl uppercase text-yellow-500 mb-4">
+                  Detected Contradictions
+                </h3>
+                <div className="space-y-3">
+                  {analysisResult.results.triple.contradictions.contradictions.map((contradiction, index) => (
+                    <div
+                      key={index}
+                      className="bg-black/50 border border-yellow-500/20 rounded-lg p-4"
+                    >
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Subject: <span className="text-foreground">{contradiction.subject}</span> | 
+                        Predicate: <span className="text-foreground">{contradiction.predicate}</span>
+                      </p>
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        <div>
+                          <p className="text-xs text-blue-400 mb-1">Grokipedia says:</p>
+                          <p className="text-sm text-foreground">{contradiction.source_a_object}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-orange-400 mb-1">Wikipedia says:</p>
+                          <p className="text-sm text-foreground">{contradiction.source_b_object}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Judging Report Preview */}
+            <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
+              <h3 className="text-xl uppercase text-primary mb-4">
+                AI Judge Report Preview
+              </h3>
+              <p className="text-xs text-muted-foreground mb-2">
+                Model: {analysisResult.results.judging.model}
+              </p>
+              <div className="bg-black/50 border border-input rounded-lg p-4">
+                <p className="text-sm text-foreground whitespace-pre-wrap">
+                  {analysisResult.results.judging.report_preview}
                 </p>
               </div>
             </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4">
+              <Button
+                onClick={() => setAnalysisResult(null)}
+                className="flex-1 bg-transparent border border-input hover:bg-white/5 text-foreground"
+              >
+                ← Analyze Another Topic
+              </Button>
+              <Button
+                className="flex-1 bg-primary hover:bg-primary/90 text-black font-bold font-mono"
+              >
+                🚀 Publish to DKG (${priceUsd})
+              </Button>
+            </div>
           </div>
-
-          {/* Error/Success Messages */}
-          {error && (
-            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
-              <p className="text-sm font-mono text-destructive">{error}</p>
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
-              <p className="text-sm font-mono text-primary">
-                ✅ Knowledge asset published successfully! Redirecting...
-              </p>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary hover:bg-primary/90 text-black font-bold font-mono text-lg py-6"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Publishing to DKG...
-              </>
-            ) : (
-              "🚀 Publish to DKG"
-            )}
-          </Button>
-        </form>
+        )}
       </div>
     </div>
   );
 }
-
