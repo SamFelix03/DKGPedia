@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, AlertTriangle, TrendingUp, TrendingDown, BarChart3, FileText, Brain, Image, Scale, Plus, X } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
+import AnalysisResults from "@/components/analysis-results";
 
 interface AnalysisResult {
   status: string;
@@ -18,11 +19,16 @@ interface AnalysisResult {
         word_count: number;
         char_count: number;
         references_count: number;
+        sections: number;
       };
       wikipedia: {
         word_count: number;
         char_count: number;
         references_count: number;
+      };
+      files: {
+        grokipedia: string;
+        wikipedia: string;
       };
     };
     triple: {
@@ -32,9 +38,85 @@ interface AnalysisResult {
         source_b_triples: number;
         total_triples: number;
       };
+      triple_overlap: {
+        exact_overlap_count: number;
+        exact_overlap_score: number;
+        fuzzy_overlap_count: number;
+        fuzzy_overlap_score: number;
+        unique_to_source_a: number;
+        unique_to_source_b: number;
+      };
       semantic_similarity: {
         average_similarity: number;
         max_similarity: number;
+        similar_pairs_count: number;
+        similar_pairs_percentage: number;
+        method: string;
+      };
+      graph_embeddings: {
+        TransE: {
+          average_similarity: number;
+          max_similarity: number;
+          entity_count: number;
+          relation_count: number;
+        };
+        DistMult: {
+          average_similarity: number;
+          max_similarity: number;
+          entity_count: number;
+          relation_count: number;
+        };
+        ComplEx: {
+          average_similarity: number;
+          max_similarity: number;
+          entity_count: number;
+          relation_count: number;
+        };
+      };
+      graph_density: {
+        source_a_density: number;
+        source_b_density: number;
+        density_delta: number;
+        density_ratio: number;
+      };
+      entity_coherence: {
+        common_entities: number;
+        consistent_entities: number;
+        partially_consistent_entities: number;
+        coherence_score: number;
+        average_overlap_ratio: number;
+        inconsistent_examples: Array<{
+          entity: string;
+          overlap_ratio: number;
+          source_a_relations: string[];
+          source_b_relations: string[];
+        }>;
+      };
+      provenance_analysis: {
+        source_a_cited: number;
+        source_a_cited_percentage: number;
+        source_b_cited: number;
+        source_b_cited_percentage: number;
+        citation_gap: number;
+        cited_overlap: number;
+        provenance_quality_score_a: number;
+        provenance_quality_score_b: number;
+        extraction_methods_a: {
+          dependency_parsing: number;
+          openie_pattern: number;
+          entity_relation: number;
+          nominal_relation: number;
+        };
+        extraction_methods_b: {
+          dependency_parsing: number;
+          openie_pattern: number;
+          entity_relation: number;
+          nominal_relation: number;
+        };
+        unsourced_triples_a: number;
+        unsourced_triples_b: number;
+        unsourced_percentage_a: number;
+        unsourced_percentage_b: number;
       };
       contradictions: {
         contradiction_count: number;
@@ -44,6 +126,8 @@ interface AnalysisResult {
           source_a_object: string;
           source_b_object: string;
         }>;
+        filtered_noise_triples_a: number;
+        filtered_noise_triples_b: number;
       };
     };
     semanticdrift: {
@@ -51,7 +135,65 @@ interface AnalysisResult {
       semantic_drift_score: {
         overall_drift_score: number;
         drift_percentage: number;
+        component_scores: {
+          sentence_embedding_drift: number;
+          cross_encoder_drift: number;
+          kg_embedding_drift: number;
+          topic_drift: number;
+        };
         interpretation: string;
+      };
+      sentence_embeddings: {
+        average_similarity: number;
+        max_similarity: number;
+        min_similarity: number;
+      };
+      cross_encoder: {
+        average_similarity: number;
+      };
+      knowledge_graph_embeddings: {
+        TransE: {
+          grokipedia_entities: number;
+          wikipedia_entities: number;
+          common_entities: number;
+          average_entity_similarity: number;
+        };
+        DistMult: {
+          grokipedia_entities: number;
+          wikipedia_entities: number;
+          common_entities: number;
+          average_entity_similarity: number;
+        };
+        ComplEx: {
+          grokipedia_entities: number;
+          wikipedia_entities: number;
+          common_entities: number;
+          average_entity_similarity: number;
+        };
+      };
+      topic_modeling: {
+        method: string;
+        topics: number[];
+        probabilities: number[][];
+        topic_info: {
+          Topic: Record<string, number>;
+          Count: Record<string, number>;
+          Name: Record<string, string>;
+          Representation: Record<string, string[]>;
+          Representative_Docs: Record<string, string[]>;
+        };
+        topic_count: number;
+        grokipedia_topics: number[];
+        wikipedia_topics: number[];
+        topic_divergence: number;
+      };
+      claim_alignment: {
+        total_claims_grokipedia: number;
+        total_claims_wikipedia: number;
+        exact_matches: number;
+        semantic_matches: number;
+        total_aligned_claims: number;
+        alignment_percentage: number;
       };
     };
     factcheck: {
@@ -63,23 +205,102 @@ interface AnalysisResult {
       };
       metrics: {
         grokipedia: {
-          fabrication_risk_score: {
-            fabrication_risk_score: number;
-            risk_level: string;
+          unsourced_claim_ratio: {
+            unsourced_ratio: number;
+            unsourced_count: number;
+            sourced_count: number;
+            total_count: number;
           };
           external_verification_score: {
             verification_score: number;
+            external_verification_score: number;
+            verified_count: number;
+            partially_verified_count: number;
+            unverified_count: number;
+            total_count: number;
+          };
+          temporal_consistency: {
+            inconsistencies: Array<{
+              type: string;
+              entity?: string;
+              claim_id?: string;
+              claim_text?: string;
+              issue: string;
+              values?: string[];
+              verification_status?: string;
+            }>;
+            inconsistency_count: number;
+            total_entities_checked: number;
+          };
+          fabrication_risk_score: {
+            fabrication_risk_score: number;
+            risk_level: string;
+            high_risk_claims: Array<{
+              claim_id: string;
+              claim_text: string;
+              risk_score: number;
+              factors: string[];
+            }>;
+            high_risk_count: number;
+            total_claims: number;
           };
         };
         wikipedia: {
-          fabrication_risk_score: {
-            fabrication_risk_score: number;
-            risk_level: string;
+          unsourced_claim_ratio: {
+            unsourced_ratio: number;
+            unsourced_count: number;
+            sourced_count: number;
+            total_count: number;
           };
           external_verification_score: {
             verification_score: number;
+            external_verification_score: number;
+            verified_count: number;
+            partially_verified_count: number;
+            unverified_count: number;
+            total_count: number;
+          };
+          temporal_consistency: {
+            inconsistencies: Array<{
+              type: string;
+              entity?: string;
+              claim_id?: string;
+              claim_text?: string;
+              issue: string;
+              values?: string[];
+              verification_status?: string;
+            }>;
+            inconsistency_count: number;
+            total_entities_checked: number;
+          };
+          fabrication_risk_score: {
+            fabrication_risk_score: number;
+            risk_level: string;
+            high_risk_claims: Array<{
+              claim_id: string;
+              claim_text: string;
+              risk_score: number;
+              factors: string[];
+            }>;
+            high_risk_count: number;
+            total_claims: number;
           };
         };
+      };
+      contradictory_claims: {
+        total_pairs: number;
+        pairs: Array<{
+          contradiction_number: number;
+          subject_predicate: string;
+          grok_object: string;
+          wiki_object: string;
+          grok_sentence: string;
+          wiki_sentence: string;
+          grok_claim: any;
+          wiki_claim: any;
+          grok_verification: any;
+          wiki_verification: any;
+        }>;
       };
     };
     sentiment: {
@@ -88,33 +309,115 @@ interface AnalysisResult {
         grokipedia_average_polarity: number;
         wikipedia_average_polarity: number;
         sentiment_shifts_count: number;
+        sentiment_shifts: Array<{
+          section: string;
+          grok_polarity: number;
+          wiki_polarity: number;
+          shift_magnitude: number;
+          shift_direction: string;
+        }>;
       };
       framing_analysis: {
         grokipedia_bias_score: number;
         wikipedia_bias_score: number;
+        representation_balance: {
+          grokipedia: number;
+          wikipedia: number;
+        };
       };
       political_leaning: {
         grokipedia: string;
         wikipedia: string;
+        grokipedia_scores: {
+          left_right_score: number;
+          auth_lib_score: number;
+          left_keywords_count: number;
+          right_keywords_count: number;
+          authoritarian_keywords_count: number;
+          libertarian_keywords_count: number;
+          quadrant: string;
+          political_keywords_found: boolean;
+        };
+        wikipedia_scores: {
+          left_right_score: number;
+          auth_lib_score: number;
+          left_keywords_count: number;
+          right_keywords_count: number;
+          authoritarian_keywords_count: number;
+          libertarian_keywords_count: number;
+          quadrant: string;
+          political_keywords_found: boolean;
+        };
       };
     };
     multimodal: {
       status: string;
       summary: {
+        wikipedia_article: string;
         images_found: number;
         images_processed: number;
         videos_found: number;
+        audio_found: number;
+        media_processed: number;
+        text_chunks: number;
+      };
+      textual_similarity: {
+        average_similarity: number;
+        average_image_similarity: number;
+        average_media_similarity: number;
+        max_similarity: number;
+        min_similarity: number;
+        highest_matching_segments: Array<{
+          type: string;
+          index: number;
+          title: string;
+          similarity: number;
+          description: string;
+        }>;
+        lowest_matching_segments: Array<{
+          type: string;
+          index: number;
+          title: string;
+          similarity: number;
+          description: string;
+        }>;
+      };
+      image_to_text_alignment: {
+        image_relevance_score: number;
+        image_text_match_score: number;
+        well_matched_images: number;
+        total_images: number;
+      };
+      media_to_text_alignment: {
+        media_relevance_score: number;
+        media_text_match_score: number;
+        well_matched_media: number;
+        total_media: number;
+        videos_processed: number;
+        audio_processed: number;
       };
       multimodal_consistency_index: {
         mci_score: number;
+        image_alignment_component: number;
+        media_alignment_component: number;
+        multimodal_consistency_component: number;
+        breakdown: {
+          image_alignment_weight: number;
+          media_alignment_weight: number;
+          consistency_weight: number;
+        };
       };
     };
     judging: {
       status: string;
       model: string;
+      report_length: number;
       report_preview: string;
+      full_report: string;
     };
   };
+  errors: string[];
+  timestamp: string;
   execution_time_seconds: number;
 }
 
@@ -349,285 +652,8 @@ export default function ContributePage() {
             </Button>
           </form>
         ) : (
-          /* Analysis Results Display */
-          <div className="space-y-6 max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="bg-black/90 backdrop-blur-sm border border-primary/30 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-3xl font-sentient font-light text-primary">
-                    Analysis Complete
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Topic: <span className="text-foreground">{analysisResult.topic}</span>
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Analysis ID</p>
-                  <p className="text-sm text-foreground/70">{analysisResult.analysis_id}</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {analysisResult.steps_completed.map((step) => (
-                  <span
-                    key={step}
-                    className="px-3 py-1 bg-primary/10 border border-primary/30 rounded-full text-xs text-primary"
-                  >
-                    ✓ {step}
-                  </span>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-4">
-                Completed in {analysisResult.execution_time_seconds.toFixed(2)}s
-              </p>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Fetch Stats */}
-              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <FileText className="h-5 w-5 text-blue-400" />
-                  <h3 className="text-lg uppercase text-blue-400">Content Fetched</h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Grokipedia</span>
-                    <span className="text-lg text-foreground">
-                      {analysisResult.results.fetch.grokipedia.word_count.toLocaleString()} words
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Wikipedia</span>
-                    <span className="text-lg text-foreground">
-                      {analysisResult.results.fetch.wikipedia.word_count.toLocaleString()} words
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">References</span>
-                    <span className="text-lg text-foreground">
-                      {analysisResult.results.fetch.grokipedia.references_count + analysisResult.results.fetch.wikipedia.references_count}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Triple Analysis */}
-              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <BarChart3 className="h-5 w-5 text-purple-400" />
-                  <h3 className="text-lg uppercase text-purple-400">Knowledge Triples</h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total Triples</span>
-                    <span className="text-lg text-foreground">
-                      {analysisResult.results.triple.basic_stats.total_triples.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Avg Similarity</span>
-                    <span className="text-lg text-foreground">
-                      {(analysisResult.results.triple.semantic_similarity.average_similarity * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Contradictions</span>
-                    <span className={`text-lg ${analysisResult.results.triple.contradictions.contradiction_count > 0 ? "text-yellow-400" : "text-green-400"}`}>
-                      {analysisResult.results.triple.contradictions.contradiction_count}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Semantic Drift */}
-              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Brain className="h-5 w-5 text-cyan-400" />
-                  <h3 className="text-lg uppercase text-cyan-400">Semantic Drift</h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Drift Score</span>
-                    <span className={`text-lg ${getDriftColor(analysisResult.results.semanticdrift.semantic_drift_score.drift_percentage)}`}>
-                      {analysisResult.results.semanticdrift.semantic_drift_score.overall_drift_score.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Drift %</span>
-                    <span className={`text-lg ${getDriftColor(analysisResult.results.semanticdrift.semantic_drift_score.drift_percentage)}`}>
-                      {analysisResult.results.semanticdrift.semantic_drift_score.drift_percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {analysisResult.results.semanticdrift.semantic_drift_score.interpretation}
-                  </p>
-                </div>
-              </div>
-
-              {/* Fact Check - Grokipedia */}
-              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <CheckCircle className="h-5 w-5 text-green-400" />
-                  <h3 className="text-lg uppercase text-green-400">Grokipedia Verification</h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Verification Score</span>
-                    <span className={`text-lg ${getScoreColor(analysisResult.results.factcheck.metrics.grokipedia.external_verification_score.verification_score)}`}>
-                      {analysisResult.results.factcheck.metrics.grokipedia.external_verification_score.verification_score}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Fabrication Risk</span>
-                    <span className={`text-lg ${getScoreColor(analysisResult.results.factcheck.metrics.grokipedia.fabrication_risk_score.fabrication_risk_score, true)}`}>
-                      {analysisResult.results.factcheck.metrics.grokipedia.fabrication_risk_score.fabrication_risk_score.toFixed(1)}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {analysisResult.results.factcheck.metrics.grokipedia.fabrication_risk_score.risk_level}
-                  </p>
-                </div>
-              </div>
-
-              {/* Fact Check - Wikipedia */}
-              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <AlertTriangle className="h-5 w-5 text-orange-400" />
-                  <h3 className="text-lg uppercase text-orange-400">Wikipedia Verification</h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Verification Score</span>
-                    <span className={`text-lg ${getScoreColor(analysisResult.results.factcheck.metrics.wikipedia.external_verification_score.verification_score)}`}>
-                      {analysisResult.results.factcheck.metrics.wikipedia.external_verification_score.verification_score}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Fabrication Risk</span>
-                    <span className={`text-lg ${getScoreColor(analysisResult.results.factcheck.metrics.wikipedia.fabrication_risk_score.fabrication_risk_score, true)}`}>
-                      {analysisResult.results.factcheck.metrics.wikipedia.fabrication_risk_score.fabrication_risk_score.toFixed(1)}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {analysisResult.results.factcheck.metrics.wikipedia.fabrication_risk_score.risk_level}
-                  </p>
-                </div>
-              </div>
-
-              {/* Sentiment Analysis */}
-              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Scale className="h-5 w-5 text-pink-400" />
-                  <h3 className="text-lg uppercase text-pink-400">Sentiment & Bias</h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Grok Polarity</span>
-                    <span className="text-lg text-foreground flex items-center gap-1">
-                      {analysisResult.results.sentiment.sentiment_analysis.grokipedia_average_polarity > 0 ? (
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 text-red-400" />
-                      )}
-                      {analysisResult.results.sentiment.sentiment_analysis.grokipedia_average_polarity.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Wiki Polarity</span>
-                    <span className="text-lg text-foreground flex items-center gap-1">
-                      {analysisResult.results.sentiment.sentiment_analysis.wikipedia_average_polarity > 0 ? (
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 text-red-400" />
-                      )}
-                      {analysisResult.results.sentiment.sentiment_analysis.wikipedia_average_polarity.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Sentiment Shifts</span>
-                    <span className="text-lg text-foreground">
-                      {analysisResult.results.sentiment.sentiment_analysis.sentiment_shifts_count}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Multimodal */}
-              <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Image className="h-5 w-5 text-teal-400" />
-                  <h3 className="text-lg uppercase text-teal-400">Multimodal Analysis</h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Images Found</span>
-                    <span className="text-lg text-foreground">
-                      {analysisResult.results.multimodal.summary.images_found}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Videos Found</span>
-                    <span className="text-lg text-foreground">
-                      {analysisResult.results.multimodal.summary.videos_found}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">MCI Score</span>
-                    <span className={`text-lg ${getScoreColor(analysisResult.results.multimodal.multimodal_consistency_index.mci_score)}`}>
-                      {analysisResult.results.multimodal.multimodal_consistency_index.mci_score.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Contradictions List */}
-            {analysisResult.results.triple.contradictions.contradictions.length > 0 && (
-              <div className="bg-black/90 backdrop-blur-sm border border-yellow-500/30 rounded-2xl p-6">
-                <h3 className="text-xl uppercase text-yellow-500 mb-4">
-                  Detected Contradictions
-                </h3>
-                <div className="space-y-3">
-                  {analysisResult.results.triple.contradictions.contradictions.map((contradiction, index) => (
-                    <div
-                      key={index}
-                      className="bg-black/50 border border-yellow-500/20 rounded-lg p-4"
-                    >
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Subject: <span className="text-foreground">{contradiction.subject}</span> | 
-                        Predicate: <span className="text-foreground">{contradiction.predicate}</span>
-                      </p>
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        <div>
-                          <p className="text-xs text-blue-400 mb-1">Grokipedia says:</p>
-                          <p className="text-sm text-foreground">{contradiction.source_a_object}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-orange-400 mb-1">Wikipedia says:</p>
-                          <p className="text-sm text-foreground">{contradiction.source_b_object}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Judging Report Preview */}
-            <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
-              <h3 className="text-xl uppercase text-primary mb-4">
-                AI Judge Report Preview
-              </h3>
-              <p className="text-xs text-muted-foreground mb-2">
-                Model: {analysisResult.results.judging.model}
-              </p>
-              <div className="bg-black/50 border border-input rounded-lg p-4">
-                <p className="text-sm text-foreground whitespace-pre-wrap">
-                  {analysisResult.results.judging.report_preview}
-                </p>
-              </div>
-            </div>
+          <div className="space-y-6">
+            <AnalysisResults data={analysisResult} />
 
             {/* Action Buttons */}
             <div className="flex gap-4">

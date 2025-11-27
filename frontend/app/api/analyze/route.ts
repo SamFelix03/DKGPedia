@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import responseJson from "../../response.json";
 
-// Dummy analysis response - imported directly from response.json to ensure all fields are included
-const dummyResponse = responseJson;
+// Dummy analysis response - this will be replaced with actual API call later
+const dummyResponse = {
     "status": "success",
     "analysis_id": "analysis_20251127_161539_Cattle",
     "topic": "Cattle",
