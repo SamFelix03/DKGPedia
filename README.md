@@ -6,6 +6,25 @@ DKGPedia is a platform that leverages the OriginTrail Decentralized Knowledge Gr
 
 ---
 
+## 🔗 Important Links
+
+### Deployed Services
+- **Deployed DKG Node**: [https://8a7ad71b6b20.ngrok-free.app](https://8a7ad71b6b20.ngrok-free.app)
+- **Deployed Comparison Engine Endpoint**: [https://db5a4d46576e.ngrok-free.app](https://db5a4d46576e.ngrok-free.app)
+- **Deployed Frontend**: [https://dkg-pedia.vercel.app](https://dkg-pedia.vercel.app)
+
+### Sample Data & Assets
+- **Sample Response**: [`response.json`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/response.json) - Example of a complete AI analysis result
+- **UAL of Complete Analysis Asset** (full contributor workflow): [View on DKG Explorer](https://dkg-testnet.origintrail.io/explore?ual=did%3Adkg%3Aotp%3A20430%2F0xcdb28e93ed340ec10a71bba00a31dbfcf1bd5d37%2F405405)
+- **UAL of Analysis-Lite Asset** (search-triggered workflow): Coming soon
+
+### Documentation & Resources
+- **DKGPedia Plugin**: [`@plugin-dkgpedia`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia) - Detailed plugin documentation
+- **Pitch Deck**: Coming soon
+- **Demo Video**: Coming soon
+
+---
+
 ## Demo Instructions
 
 ### To Contribute a Knowledge Asset
