@@ -350,6 +350,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             OPTIONAL { ?asset dkgpedia:stepsCompleted ?stepsCompleted . }
             OPTIONAL { ?asset dkgpedia:executionTimeSeconds ?executionTimeSeconds . }
             OPTIONAL { ?asset dkgpedia:analysisTimestamp ?analysisTimestamp . }
+            OPTIONAL { ?asset dkgpedia:imageUrls ?imageUrls . }
           }
           ORDER BY DESC(?createdAt)
           LIMIT 1
@@ -455,6 +456,10 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         const analysisResultStr = extractValue(note.analysisResult, true);
         analysisResult = safeJsonParse(analysisResultStr, null);
 
+        // Parse image URLs if available
+        const imageUrlsStr = extractValue(note.imageUrls, true);
+        const imageUrls = safeJsonParse(imageUrlsStr, null);
+
         // Parse individual result sections if full analysisResult is not available
         if (!analysisResult) {
           const fetchStr = extractValue(note.fetchResults, true);
@@ -546,6 +551,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               return {
                 ...analysisResult,
                 results: mergedResults,
+                image_urls: analysisResult.image_urls || imageUrls || undefined,
               };
             }
             
@@ -558,6 +564,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
                 const stepsStr = extractValue(note.stepsCompleted);
                 return safeJsonParse(stepsStr, []);
               })(),
+              image_urls: imageUrls || undefined,
               results: mergedResults,
               execution_time_seconds: mergedResult.execution_time_seconds || parseFloat(extractValue(note.executionTimeSeconds)) || 0,
               timestamp: mergedResult.timestamp || extractValue(note.analysisTimestamp) || extractValue(note.createdAt) || new Date().toISOString(),
@@ -909,6 +916,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               OPTIONAL { ?asset dkgpedia:stepsCompleted ?stepsCompleted . }
               OPTIONAL { ?asset dkgpedia:executionTimeSeconds ?executionTimeSeconds . }
               OPTIONAL { ?asset dkgpedia:analysisTimestamp ?analysisTimestamp . }
+              OPTIONAL { ?asset dkgpedia:imageUrls ?imageUrls . }
             }
             ORDER BY DESC(?createdAt)
             LIMIT 1
@@ -958,6 +966,10 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           // Parse full analysis result if available
           const analysisResultStr = extractValue(note.analysisResult, true);
           let analysisResult = safeJsonParse(analysisResultStr, null);
+
+          // Parse image URLs if available
+          const imageUrlsStr = extractValue(note.imageUrls, true);
+          const imageUrls = safeJsonParse(imageUrlsStr, null);
 
           // Parse individual result sections if full analysisResult is not available
           let fetchResults = null;
@@ -1017,6 +1029,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
                 const stepsStr = extractValue(note.stepsCompleted);
                 return safeJsonParse(stepsStr, []);
               })(),
+              image_urls: imageUrls || undefined,
               results: {
                 fetch: fetchResults || {},
                 triple: tripleResults || {},
@@ -1267,6 +1280,11 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               analysis_id: z.string(),
               topic: z.string(),
               steps_completed: z.array(z.string()),
+              image_urls: z.object({
+                "similarity_heatmap.png": z.string().optional(),
+                "embedding_space.png": z.string().optional(),
+                "bias_compass.png": z.string().optional(),
+              }).optional(),
               results: z.object({
                 fetch: z.any(),
                 triple: z.any(),
@@ -1380,6 +1398,9 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             "dkgpedia:stepsCompleted": JSON.stringify(analysisResult.steps_completed),
             "dkgpedia:executionTimeSeconds": analysisResult.execution_time_seconds,
             "dkgpedia:analysisTimestamp": analysisResult.timestamp || new Date().toISOString(),
+            
+            // Image URLs for visualizations
+            "dkgpedia:imageUrls": analysisResult.image_urls ? JSON.stringify(analysisResult.image_urls) : "{}",
           };
 
           // Add wallet address and price for user-contributed content
