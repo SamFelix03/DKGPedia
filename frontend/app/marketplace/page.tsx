@@ -87,12 +87,12 @@ export default function MarketplacePage() {
         <h1 className="font-sentient text-5xl font-light mb-4 text-center">
           <i>Marketplace</i>
         </h1>
-        <p className="text-center text-muted-foreground mb-12">
+        <p className="text-center text-muted-foreground mb-12 font-mono">
           Browse all knowledge assets on the DKG
         </p>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-12">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 bg-black/90 border border-input p-1">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 bg-black/90 border border-input p-1 font-mono">
             <TabsTrigger 
               value="all"
               className="data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:font-bold transition-all"
