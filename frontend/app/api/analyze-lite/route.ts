@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const ANALYZE_LITE_API_URL = "http://localhost:8000/analyze-lite";
+const ANALYZE_LITE_API_URL = `${process.env.ANALYZE_API_URL}/analyze-lite`;
 const DKG_API_URL = process.env.NEXT_PUBLIC_DKG_API_URL || "http://localhost:9200";
 
 const dummyResponse = {
@@ -226,14 +226,13 @@ export async function POST(request: NextRequest) {
     console.log(`Starting analyze-lite for topic: ${topic}`);
 
     // Step 1: Call analyze-lite endpoint
-    // const analyzeResponse = await fetch(ANALYZE_LITE_API_URL, {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //   },
-    //   body: JSON.stringify({ topic }),
-    // });
-    const analyzeResponse = NextResponse.json(dummyResponse, { status: 200 });
+    const analyzeResponse = await fetch(ANALYZE_LITE_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ topic }),
+    });
 
     if (!analyzeResponse.ok) {
       throw new Error(`Analyze-lite API returned ${analyzeResponse.status}`);

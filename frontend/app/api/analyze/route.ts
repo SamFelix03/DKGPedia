@@ -1912,34 +1912,58 @@ const dummyResponse = {
     },
 }
 
+const ANALYZE_API_URL = process.env.ANALYZE_API_URL || "https://e2e96c275459.ngrok-free.app";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, sources, topicId } = body;
+    const { topic, sources, topicId, suggestedEdit } = body;
 
     // Ensure sources is an array
     const sourcesArray = Array.isArray(sources) ? sources : [];
 
-    // For now, return the dummy response with the topic replaced
+    // Prepare form data
+    const formData = new FormData();
+    formData.append("topic", topic || "Unknown Topic");
+    
+    // Add each source as a separate form field
+    sourcesArray.forEach((source: string) => {
+      formData.append("sources", source);
+    });
+
+    // Add suggested edit if provided
+    if (suggestedEdit) {
+      formData.append("suggested_edit", suggestedEdit);
+    }
+
+    // Call the real analyze endpoint
+    const analyzeResponse = await fetch(`${ANALYZE_API_URL}/analyze`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!analyzeResponse.ok) {
+      throw new Error(`Analyze endpoint returned ${analyzeResponse.status}`);
+    }
+
+    const analysisData = await analyzeResponse.json();
+
+    // Add the topicId to the response for reference
     const response = {
-      ...dummyResponse,
-      topic: topic || "Unknown Topic",
-      analysis_id: `analysis_${Date.now()}_${topic?.replace(/\s+/g, "_") || "unknown"}`,
+      ...analysisData,
       request_data: {
         topicId,
         topic,
         sources: sourcesArray,
+        suggestedEdit,
       },
     };
-
-    // Simulate some processing time
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     return NextResponse.json(response);
   } catch (error) {
     console.error("Analysis error:", error);
     return NextResponse.json(
-      { error: "Failed to analyze topic" },
+      { error: "Failed to analyze topic", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }
