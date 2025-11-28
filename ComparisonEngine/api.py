@@ -762,6 +762,108 @@ def run_analysis(analysis_id: str, topic: str, suggested_edit: str, resource_lin
             logger.info("[WARNING] Contradictions:")
             logger.info(f"  - Contradictions Detected: {comp['contradictions']['contradiction_count']}")
             
+            # Save results to kg_analysis_results.txt for factcheck.py to read
+            output_file = "kg_analysis_results.txt"
+            output_lines = []
+            output_lines.append("=" * 80)
+            output_lines.append("🔬 Knowledge Graph Triple Extraction & Comparison System")
+            output_lines.append("=" * 80)
+            output_lines.append("")
+            output_lines.append("📚 Reading files...")
+            output_lines.append(f"   Grokipedia: {grokipedia_filename}")
+            output_lines.append(f"   Wikipedia: {wikipedia_filename}")
+            output_lines.append("")
+            output_lines.append("🔍 Extracting triples...")
+            output_lines.append(f"   Grokipedia Triples: {comp['basic_stats']['source_a_triples']}")
+            output_lines.append(f"   Wikipedia Triples: {comp['basic_stats']['source_b_triples']}")
+            output_lines.append("")
+            output_lines.append("📊 Comparing graphs...")
+            output_lines.append("✅ Analysis complete!")
+            output_lines.append("")
+            output_lines.append("=" * 80)
+            output_lines.append("📈 ANALYSIS SUMMARY")
+            output_lines.append("=" * 80)
+            output_lines.append("")
+            output_lines.append("📊 Basic Statistics:")
+            output_lines.append(f"   Grokipedia Triples: {comp['basic_stats']['source_a_triples']}")
+            output_lines.append(f"   Wikipedia Triples: {comp['basic_stats']['source_b_triples']}")
+            output_lines.append("")
+            output_lines.append("🔄 Triple Overlap:")
+            output_lines.append(f"   Exact Match: {comp['triple_overlap']['exact_overlap_score']}%")
+            output_lines.append(f"   Fuzzy Match: {comp['triple_overlap']['fuzzy_overlap_score']}%")
+            output_lines.append(f"   Unique to Grokipedia: {comp['triple_overlap']['unique_to_source_a']}")
+            output_lines.append(f"   Unique to Wikipedia: {comp['triple_overlap']['unique_to_source_b']}")
+            output_lines.append("")
+            output_lines.append("🧠 Semantic Similarity (Text-based):")
+            output_lines.append(f"   Average Similarity: {comp['semantic_similarity']['average_similarity']}")
+            output_lines.append(f"   Similar Pairs: {comp['semantic_similarity']['similar_pairs_count']}")
+            output_lines.append(f"   Method: {comp['semantic_similarity']['method']}")
+            output_lines.append("")
+            
+            # Add graph embeddings if available
+            if 'graph_embeddings' in comp:
+                output_lines.append("🔗 Graph Embeddings (Knowledge Graph-based):")
+                for method, method_results in comp['graph_embeddings'].items():
+                    if 'error' not in method_results:
+                        output_lines.append(f"   {method}:")
+                        output_lines.append(f"     Average Similarity: {method_results.get('average_similarity', 'N/A')}")
+                        output_lines.append(f"     Max Similarity: {method_results.get('max_similarity', 'N/A')}")
+                        output_lines.append(f"     Entities: {method_results.get('entity_count', 'N/A')}, Relations: {method_results.get('relation_count', 'N/A')}")
+                    else:
+                        output_lines.append(f"   {method}: Error - {method_results.get('error', 'Unknown')}")
+                output_lines.append("")
+            
+            # Add graph density if available
+            if 'graph_density' in comp:
+                output_lines.append("📏 Graph Density:")
+                output_lines.append(f"   Grokipedia: {comp['graph_density'].get('source_a_density', 'N/A')} triples/1000 words")
+                output_lines.append(f"   Wikipedia: {comp['graph_density'].get('source_b_density', 'N/A')} triples/1000 words")
+                output_lines.append(f"   Delta: {comp['graph_density'].get('density_delta', 'N/A')}")
+                output_lines.append("")
+            
+            # Add entity coherence if available
+            if 'entity_coherence' in comp:
+                output_lines.append("🎯 Entity Coherence:")
+                output_lines.append(f"   Common Entities: {comp['entity_coherence'].get('common_entities', 0)}")
+                output_lines.append(f"   Consistent Entities: {comp['entity_coherence'].get('consistent_entities', 0)}")
+                output_lines.append(f"   Partially Consistent: {comp['entity_coherence'].get('partially_consistent_entities', 0)}")
+                output_lines.append(f"   Coherence Score: {comp['entity_coherence'].get('coherence_score', 0)}%")
+                output_lines.append(f"   Average Overlap Ratio: {comp['entity_coherence'].get('average_overlap_ratio', 0)}%")
+                output_lines.append("")
+            
+            # Add provenance analysis
+            output_lines.append("📚 Provenance Chain Analysis:")
+            output_lines.append(f"   Grokipedia:")
+            output_lines.append(f"     Cited: {prov['source_a_cited']} ({prov['source_a_cited_percentage']}%)")
+            output_lines.append(f"     Unsourced: {prov['unsourced_triples_a']} ({prov['unsourced_percentage_a']}%)")
+            output_lines.append(f"     Quality Score: {prov['provenance_quality_score_a']}%")
+            output_lines.append(f"   Wikipedia:")
+            output_lines.append(f"     Cited: {prov['source_b_cited']} ({prov['source_b_cited_percentage']}%)")
+            output_lines.append(f"     Unsourced: {prov['unsourced_triples_b']} ({prov['unsourced_percentage_b']}%)")
+            output_lines.append(f"     Quality Score: {prov['provenance_quality_score_b']}%")
+            output_lines.append("")
+            
+            # Add contradictions section (CRITICAL for factcheck.py)
+            output_lines.append(f"⚠️ Contradictions Detected: {comp['contradictions']['contradiction_count']}")
+            if comp['contradictions'].get('filtered_noise_triples_a'):
+                output_lines.append(f"   (Filtered {comp['contradictions']['filtered_noise_triples_a']} noise triples from Grokipedia, "
+                                  f"{comp['contradictions']['filtered_noise_triples_b']} from Wikipedia)")
+            output_lines.append("")
+            
+            # Add all contradictions (this is what factcheck.py reads)
+            if comp['contradictions'].get('contradictions'):
+                output_lines.append("   All Contradictions:")
+                for i, contr in enumerate(comp['contradictions']['contradictions'], 1):
+                    output_lines.append(f"   {i}. {contr['subject']} {contr['predicate']}:")
+                    output_lines.append(f"      Grokipedia: {contr['source_a_object']}")
+                    output_lines.append(f"      Wikipedia: {contr['source_b_object']}")
+            
+            # Write to file
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(output_lines))
+            
+            logger.info(f"[OK] Results saved to {output_file}")
+            
             results["triple"] = {
                 "status": "success",
                 "basic_stats": comp['basic_stats'],
@@ -1464,6 +1566,108 @@ def run_lite_analysis(analysis_id: str, topic: str):
             
             logger.info("[WARNING] Contradictions:")
             logger.info(f"  - Contradictions Detected: {comp['contradictions']['contradiction_count']}")
+            
+            # Save results to kg_analysis_results.txt for factcheck.py to read (same as full analysis)
+            output_file = "kg_analysis_results.txt"
+            output_lines = []
+            output_lines.append("=" * 80)
+            output_lines.append("🔬 Knowledge Graph Triple Extraction & Comparison System")
+            output_lines.append("=" * 80)
+            output_lines.append("")
+            output_lines.append("📚 Reading files...")
+            output_lines.append(f"   Grokipedia: {grokipedia_filename}")
+            output_lines.append(f"   Wikipedia: {wikipedia_filename}")
+            output_lines.append("")
+            output_lines.append("🔍 Extracting triples...")
+            output_lines.append(f"   Grokipedia Triples: {comp['basic_stats']['source_a_triples']}")
+            output_lines.append(f"   Wikipedia Triples: {comp['basic_stats']['source_b_triples']}")
+            output_lines.append("")
+            output_lines.append("📊 Comparing graphs...")
+            output_lines.append("✅ Analysis complete!")
+            output_lines.append("")
+            output_lines.append("=" * 80)
+            output_lines.append("📈 ANALYSIS SUMMARY")
+            output_lines.append("=" * 80)
+            output_lines.append("")
+            output_lines.append("📊 Basic Statistics:")
+            output_lines.append(f"   Grokipedia Triples: {comp['basic_stats']['source_a_triples']}")
+            output_lines.append(f"   Wikipedia Triples: {comp['basic_stats']['source_b_triples']}")
+            output_lines.append("")
+            output_lines.append("🔄 Triple Overlap:")
+            output_lines.append(f"   Exact Match: {comp['triple_overlap']['exact_overlap_score']}%")
+            output_lines.append(f"   Fuzzy Match: {comp['triple_overlap']['fuzzy_overlap_score']}%")
+            output_lines.append(f"   Unique to Grokipedia: {comp['triple_overlap']['unique_to_source_a']}")
+            output_lines.append(f"   Unique to Wikipedia: {comp['triple_overlap']['unique_to_source_b']}")
+            output_lines.append("")
+            output_lines.append("🧠 Semantic Similarity (Text-based):")
+            output_lines.append(f"   Average Similarity: {comp['semantic_similarity']['average_similarity']}")
+            output_lines.append(f"   Similar Pairs: {comp['semantic_similarity']['similar_pairs_count']}")
+            output_lines.append(f"   Method: {comp['semantic_similarity']['method']}")
+            output_lines.append("")
+            
+            # Add graph embeddings if available
+            if 'graph_embeddings' in comp:
+                output_lines.append("🔗 Graph Embeddings (Knowledge Graph-based):")
+                for method, method_results in comp['graph_embeddings'].items():
+                    if 'error' not in method_results:
+                        output_lines.append(f"   {method}:")
+                        output_lines.append(f"     Average Similarity: {method_results.get('average_similarity', 'N/A')}")
+                        output_lines.append(f"     Max Similarity: {method_results.get('max_similarity', 'N/A')}")
+                        output_lines.append(f"     Entities: {method_results.get('entity_count', 'N/A')}, Relations: {method_results.get('relation_count', 'N/A')}")
+                    else:
+                        output_lines.append(f"   {method}: Error - {method_results.get('error', 'Unknown')}")
+                output_lines.append("")
+            
+            # Add graph density if available
+            if 'graph_density' in comp:
+                output_lines.append("📏 Graph Density:")
+                output_lines.append(f"   Grokipedia: {comp['graph_density'].get('source_a_density', 'N/A')} triples/1000 words")
+                output_lines.append(f"   Wikipedia: {comp['graph_density'].get('source_b_density', 'N/A')} triples/1000 words")
+                output_lines.append(f"   Delta: {comp['graph_density'].get('density_delta', 'N/A')}")
+                output_lines.append("")
+            
+            # Add entity coherence if available
+            if 'entity_coherence' in comp:
+                output_lines.append("🎯 Entity Coherence:")
+                output_lines.append(f"   Common Entities: {comp['entity_coherence'].get('common_entities', 0)}")
+                output_lines.append(f"   Consistent Entities: {comp['entity_coherence'].get('consistent_entities', 0)}")
+                output_lines.append(f"   Partially Consistent: {comp['entity_coherence'].get('partially_consistent_entities', 0)}")
+                output_lines.append(f"   Coherence Score: {comp['entity_coherence'].get('coherence_score', 0)}%")
+                output_lines.append(f"   Average Overlap Ratio: {comp['entity_coherence'].get('average_overlap_ratio', 0)}%")
+                output_lines.append("")
+            
+            # Add provenance analysis
+            output_lines.append("📚 Provenance Chain Analysis:")
+            output_lines.append(f"   Grokipedia:")
+            output_lines.append(f"     Cited: {prov['source_a_cited']} ({prov['source_a_cited_percentage']}%)")
+            output_lines.append(f"     Unsourced: {prov['unsourced_triples_a']} ({prov['unsourced_percentage_a']}%)")
+            output_lines.append(f"     Quality Score: {prov['provenance_quality_score_a']}%")
+            output_lines.append(f"   Wikipedia:")
+            output_lines.append(f"     Cited: {prov['source_b_cited']} ({prov['source_b_cited_percentage']}%)")
+            output_lines.append(f"     Unsourced: {prov['unsourced_triples_b']} ({prov['unsourced_percentage_b']}%)")
+            output_lines.append(f"     Quality Score: {prov['provenance_quality_score_b']}%")
+            output_lines.append("")
+            
+            # Add contradictions section (CRITICAL for factcheck.py)
+            output_lines.append(f"⚠️ Contradictions Detected: {comp['contradictions']['contradiction_count']}")
+            if comp['contradictions'].get('filtered_noise_triples_a'):
+                output_lines.append(f"   (Filtered {comp['contradictions']['filtered_noise_triples_a']} noise triples from Grokipedia, "
+                                  f"{comp['contradictions']['filtered_noise_triples_b']} from Wikipedia)")
+            output_lines.append("")
+            
+            # Add all contradictions (this is what factcheck.py reads)
+            if comp['contradictions'].get('contradictions'):
+                output_lines.append("   All Contradictions:")
+                for i, contr in enumerate(comp['contradictions']['contradictions'], 1):
+                    output_lines.append(f"   {i}. {contr['subject']} {contr['predicate']}:")
+                    output_lines.append(f"      Grokipedia: {contr['source_a_object']}")
+                    output_lines.append(f"      Wikipedia: {contr['source_b_object']}")
+            
+            # Write to file
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(output_lines))
+            
+            logger.info(f"[OK] Results saved to {output_file}")
             
             results["triple"] = {
                 "status": "success",
