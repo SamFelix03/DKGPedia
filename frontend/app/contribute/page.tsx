@@ -520,56 +520,56 @@ export default function ContributePage() {
     }
   };
 
-  const handleFetchLastAnalysis = async () => {
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-    setAnalysisResult(null);
-    setProgressStatus(null);
+  // const handleFetchLastAnalysis = async () => {
+  //   setLoading(true);
+  //   setError(null);
+  //   setSuccess(null);
+  //   setAnalysisResult(null);
+  //   setProgressStatus(null);
 
-    try {
-      console.log("🔍 Fetching last analysis from progress endpoint...");
-      const response = await fetch("/api/analyze/progress");
+  //   try {
+  //     console.log("🔍 Fetching last analysis from progress endpoint...");
+  //     const response = await fetch("/api/analyze/progress");
       
-      if (!response.ok) {
-        throw new Error("Failed to fetch progress");
-      }
+  //     if (!response.ok) {
+  //       throw new Error("Failed to fetch progress");
+  //     }
 
-      const data = await response.json();
-      console.log("📥 Progress response:", JSON.stringify(data, null, 2));
+  //     const data = await response.json();
+  //     console.log("📥 Progress response:", JSON.stringify(data, null, 2));
 
-      // Check if we got completed analysis
-      if (data.status === "completed" || data.current_step === "completed" || (data.results && data.progress_percentage === 100)) {
-        console.log("✅ Found completed analysis!");
+  //     // Check if we got completed analysis
+  //     if (data.status === "completed" || data.current_step === "completed" || (data.results && data.progress_percentage === 100)) {
+  //       console.log("✅ Found completed analysis!");
         
-        // Transform the nested structure
-        const transformedData = {
-          status: data.status || "success",
-          analysis_id: data.analysis_id,
-          topic: data.results?.topic || data.topic,
-          steps_completed: data.results?.steps_completed || [],
-          results: data.results?.results || data.results,
-          errors: data.errors || [],
-          timestamp: data.timestamp,
-          execution_time_seconds: data.execution_time_seconds || 0,
-          image_urls: data.results?.image_urls || data.image_urls,
-        };
+  //       // Transform the nested structure
+  //       const transformedData = {
+  //         status: data.status || "success",
+  //         analysis_id: data.analysis_id,
+  //         topic: data.results?.topic || data.topic,
+  //         steps_completed: data.results?.steps_completed || [],
+  //         results: data.results?.results || data.results,
+  //         errors: data.errors || [],
+  //         timestamp: data.timestamp,
+  //         execution_time_seconds: data.execution_time_seconds || 0,
+  //         image_urls: data.results?.image_urls || data.image_urls,
+  //       };
         
-        setAnalysisResult(transformedData);
-      } else if (data.status === "in_progress" || (data.current_step && data.current_step !== "completed")) {
-        setError(`Analysis still in progress: ${data.current_step} (${data.progress_percentage}%)`);
-      } else if (data.status === "error" || data.errors?.length > 0) {
-        setError(data.errors?.[0] || "Analysis failed");
-      } else {
-        setError("No completed analysis found or unexpected response format");
-      }
-    } catch (err) {
-      console.error("❌ Error fetching last analysis:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch last analysis");
-    } finally {
-      setLoading(false);
-    }
-  };
+  //       setAnalysisResult(transformedData);
+  //     } else if (data.status === "in_progress" || (data.current_step && data.current_step !== "completed")) {
+  //       setError(`Analysis still in progress: ${data.current_step} (${data.progress_percentage}%)`);
+  //     } else if (data.status === "error" || data.errors?.length > 0) {
+  //       setError(data.errors?.[0] || "Analysis failed");
+  //     } else {
+  //       setError("No completed analysis found or unexpected response format");
+  //     }
+  //   } catch (err) {
+  //     console.error("❌ Error fetching last analysis:", err);
+  //     setError(err instanceof Error ? err.message : "Failed to fetch last analysis");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const pollProgress = async () => {
     let isCompleted = false;
@@ -749,6 +749,19 @@ export default function ContributePage() {
           <p className="text-base font-mono text-muted-foreground text-center">
             Help Us Create a More Accurate Grokipedia, one search term at a time.
           </p>
+          <div className="mt-6 max-w-3xl mx-auto">
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6">
+              <p className="text-base font-mono text-foreground leading-relaxed">
+                <span className="text-yellow-500 font-bold">⚠️ Note:</span>
+                <br /><br />
+                Due to the long processing time (30 to 45 MINUTES), we recommend trying the <strong>Search</strong> feature first instead of contributing.
+                <br /><br />
+                Searching for a term not available in the DKG triggers the "analyze-lite" workflow, which only performs content fetching and knowledge triple extraction. This takes significantly less time to publish and retrieve.
+                <br /><br />
+                Vercel also has a timeout for api calls which causes the asset publishing to time out for larger assets.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Progress Status */}
@@ -955,7 +968,7 @@ export default function ContributePage() {
                 )}
               </Button>
               
-              <Button
+              {/* <Button
                 type="button"
                 onClick={handleFetchLastAnalysis}
                 disabled={loading}
@@ -969,7 +982,7 @@ export default function ContributePage() {
                 ) : (
                   "📥 Fetch Last Analysis"
                 )}
-              </Button>
+              </Button> */}
             </div>
           </form>
         ) : (
