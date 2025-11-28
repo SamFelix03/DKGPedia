@@ -941,12 +941,21 @@ def run_analysis(analysis_id: str, topic: str, suggested_edit: str, resource_lin
                 if 'topics' in topic_modeling:
                     del topic_modeling['topics']  # Also remove raw topics array if present
             
+            # Filter out sentence embeddings from visualization (they're too large for API response)
+            visualization = drift_results.get('visualization', {})
+            if isinstance(visualization, dict):
+                visualization = visualization.copy()
+                if 'sentence_embeddings_grok' in visualization:
+                    del visualization['sentence_embeddings_grok']
+                if 'sentence_embeddings_wiki' in visualization:
+                    del visualization['sentence_embeddings_wiki']
+            
             results["semanticdrift"] = {
                 "status": "success",
                 "topic_modeling": topic_modeling,
                 "semantic_drift_score": drift_results.get('semantic_drift_score', {}),
                 "claim_alignment": drift_results.get('claim_alignment', {}),
-                "visualization": drift_results.get('visualization', {})
+                "visualization": visualization
             }
             
             steps_completed.append("semanticdrift")
@@ -1766,3 +1775,4 @@ def run_lite_analysis(analysis_id: str, topic: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
