@@ -709,8 +709,8 @@ Analyze the web search results and provide a structured JSON response evaluating
                 "metrics": {}
             }
         
-        # Limit to first 10 contradictions for fact-checking
-        MAX_CONTRADICTIONS_TO_CHECK = 10
+        # Limit to first 5 contradictions for fact-checking
+        MAX_CONTRADICTIONS_TO_CHECK = 5
         total_contradictions = len(all_contradictions)
         contradictions = all_contradictions[:MAX_CONTRADICTIONS_TO_CHECK]
         
