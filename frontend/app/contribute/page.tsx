@@ -13,7 +13,6 @@ import {
 import { Loader2, Plus, X, CheckCircle2 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import AnalysisResults from "@/components/analysis-results";
-import { AnalysisProgressModal } from "@/components/analysis-progress-modal";
 
 interface AnalysisResult {
   status: string;
@@ -440,16 +439,19 @@ export default function ContributePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ual: string; verification_url?: string } | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [showProgress, setShowProgress] = useState(false);
-  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [progressStatus, setProgressStatus] = useState<{
+    current_step?: string;
+    step_number?: number;
+    total_steps?: number;
+    progress_percentage?: number;
+    message?: string;
+  } | null>(null);
 
   // Form state
-  const [title, setTitle] = useState("Cattle");
-  const [sources, setSources] = useState<string[]>([
-    "https://grok.com/grokipedia/cattle",
-    "https://en.wikipedia.org/wiki/Cattle",
-  ]);
-  const [priceUsd, setPriceUsd] = useState("0.10");
+  const [title, setTitle] = useState("");
+  const [sources, setSources] = useState<string[]>([""]);
+  const [priceUsd, setPriceUsd] = useState("");
+  const [suggestedEdit, setSuggestedEdit] = useState("");
 
   const addSource = () => {
     setSources([...sources, ""]);
@@ -473,51 +475,89 @@ export default function ContributePage() {
     setError(null);
     setSuccess(null);
     setAnalysisResult(null);
+    setProgressStatus(null);
 
     try {
-      const topicId = `topic_${uuidv4()}`;
-
       // Filter out empty sources
       const validSources = sources.filter((source) => source.trim() !== "");
 
-      const payload = {
-        topicId,
-        topic: title,
-        sources: validSources,
-      };
+      if (validSources.length === 0) {
+        setError("Please add at least one source");
+        setLoading(false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("topic", title);
+      validSources.forEach((source) => formData.append("sources", source));
+      if (suggestedEdit) {
+        formData.append("suggested_edit", suggestedEdit);
+      }
 
       const response = await fetch("/api/analyze", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error("Analysis failed");
+      }
 
-      if (response.ok && data.status === "success") {
-        setAnalysisResult(data);
+      const data = await response.json();
+      
+      // Check if analysis has started and needs progress tracking
+      if (data.status === "started") {
+        // Start polling for progress
+        pollProgress();
       } else {
-        setError(data.error || "Failed to analyze topic");
+        // Analysis completed immediately
+        setAnalysisResult(data);
+        setLoading(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to analyze topic");
-    } finally {
+      setError(err instanceof Error ? err.message : "Analysis failed");
       setLoading(false);
     }
   };
 
-  const handleAnalysisComplete = (analysisData: any) => {
-    console.log("✓ Analysis completed");
-    setShowProgress(false);
-    setAnalysisResult(analysisData);
-  };
+  const pollProgress = async () => {
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await fetch("/api/analyze/progress");
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch progress");
+        }
 
-  const handleAnalysisError = (errorMessage: string) => {
-    console.error("Analysis error:", errorMessage);
-    setShowProgress(false);
-    setError(errorMessage);
+        const data = await response.json();
+
+        if (data.status === "in_progress" || data.current_step) {
+          setProgressStatus({
+            current_step: data.current_step,
+            step_number: data.step_number,
+            total_steps: data.total_steps,
+            progress_percentage: data.progress_percentage,
+            message: data.message,
+          });
+        } else if (data.status === "success" || data.results) {
+          // Analysis complete
+          clearInterval(intervalId);
+          setProgressStatus(null);
+          setAnalysisResult(data);
+          setLoading(false);
+        } else if (data.status === "error" || data.errors?.length > 0) {
+          clearInterval(intervalId);
+          setProgressStatus(null);
+          setError(data.errors?.[0] || "Analysis failed");
+          setLoading(false);
+        }
+      } catch (err) {
+        clearInterval(intervalId);
+        setProgressStatus(null);
+        setError(err instanceof Error ? err.message : "Failed to fetch progress");
+        setLoading(false);
+      }
+    }, 25000); // Poll every 25 seconds
   };
 
   const handlePublish = async () => {
@@ -626,17 +666,6 @@ export default function ContributePage() {
 
   return (
     <div className="min-h-screen pt-36 pb-16 px-4">
-      {/* Analysis Progress Modal */}
-      {showProgress && analysisId && (
-        <AnalysisProgressModal
-          open={showProgress}
-          analysisId={analysisId}
-          progressEndpoint="http://localhost:8000"
-          onComplete={handleAnalysisComplete}
-          onError={handleAnalysisError}
-        />
-      )}
-
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="font-sentient text-5xl font-light mb-4 text-center">
@@ -646,6 +675,58 @@ export default function ContributePage() {
             Help Us Create a More Accurate Grokipedia, one search term at a time.
           </p>
         </div>
+
+        {/* Progress Status */}
+        {loading && progressStatus && (
+          <div className="bg-black/90 backdrop-blur-sm border border-primary/30 rounded-2xl p-8 mb-8">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <h2 className="text-2xl font-sentient text-primary">Analyzing Content</h2>
+            </div>
+            
+            {progressStatus.progress_percentage !== undefined && (
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-mono text-muted-foreground">
+                    Step {progressStatus.step_number} of {progressStatus.total_steps}
+                  </span>
+                  <span className="text-sm font-mono text-primary">
+                    {progressStatus.progress_percentage}%
+                  </span>
+                </div>
+                <div className="w-full bg-black/50 rounded-full h-3 border border-input overflow-hidden">
+                  <div
+                    className="h-full bg-yellow-500 transition-all duration-500 ease-out"
+                    style={{ width: `${progressStatus.progress_percentage}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {progressStatus.current_step && (
+              <div className="text-center space-y-2">
+                <p className="text-lg font-mono text-foreground uppercase tracking-wide">
+                  {progressStatus.current_step}
+                </p>
+                {progressStatus.message && (
+                  <p className="text-sm text-muted-foreground">
+                    {progressStatus.message}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Simple Loading State (when no progress data yet) */}
+        {loading && !progressStatus && !analysisResult && (
+          <div className="bg-black/90 backdrop-blur-sm border border-primary/30 rounded-2xl p-8 mb-8">
+            <div className="flex items-center justify-center gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-xl text-muted-foreground">Starting analysis...</p>
+            </div>
+          </div>
+        )}
 
         {!analysisResult ? (
           <form onSubmit={handleAnalyze} className="space-y-6 max-w-2xl mx-auto">
@@ -710,6 +791,26 @@ export default function ContributePage() {
               <p className="text-xs font-mono text-muted-foreground">
                 Add at least one source URL to support your contribution
               </p>
+            </div>
+
+            {/* Suggested Edit (Optional) */}
+            <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6 space-y-6">
+              <h2 className="text-xl font-mono uppercase text-primary">Suggested Edit</h2>
+              <div>
+                <label className="block text-sm font-mono text-muted-foreground mb-2">
+                  Provide any corrections or suggestions for the analysis
+                </label>
+                <textarea
+                  value={suggestedEdit}
+                  onChange={(e) => setSuggestedEdit(e.target.value)}
+                  placeholder="e.g., The article incorrectly states that... It should be..."
+                  rows={4}
+                  className="w-full bg-black/50 border border-input rounded-lg px-4 py-3 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                />
+                <p className="text-xs font-mono text-muted-foreground mt-2">
+                  This will be used to improve the analysis quality
+                </p>
+              </div>
             </div>
 
             {/* Payment Settings */}

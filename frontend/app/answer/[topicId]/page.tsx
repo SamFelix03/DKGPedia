@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, FileText, CheckCircle2, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PaymentInfoModal } from "@/components/payment-info-modal";
-import { AnalysisProgressModal } from "@/components/analysis-progress-modal";
 import { useWallet } from "@/contexts/wallet-context";
 import AnalysisResults from "@/components/analysis-results";
 import MarkdownRenderer from "@/components/markdown-renderer";
@@ -43,8 +42,13 @@ export default function AnswerPage() {
   const [error, setError] = useState<string | null>(null);
   const [needsPayment, setNeedsPayment] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<{ priceUsd: number; title: string } | null>(null);
-  const [showProgress, setShowProgress] = useState(false);
-  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [progressStatus, setProgressStatus] = useState<{
+    current_step?: string;
+    step_number?: number;
+    total_steps?: number;
+    progress_percentage?: number;
+    message?: string;
+  } | null>(null);
 
   // Handle mounting and load from sessionStorage
   useEffect(() => {
@@ -83,6 +87,46 @@ export default function AnswerPage() {
       fetchAnswer();
     }
   }, [topicId, mounted, data]);
+
+  const pollAnalyzeLiteProgress = async (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const intervalId = setInterval(async () => {
+        try {
+          const response = await fetch("/api/analyze-lite/progress");
+          
+          if (!response.ok) {
+            throw new Error("Failed to fetch progress");
+          }
+
+          const data = await response.json();
+
+          if (data.status === "in_progress" || data.current_step) {
+            setProgressStatus({
+              current_step: data.current_step,
+              step_number: data.step_number,
+              total_steps: data.total_steps,
+              progress_percentage: data.progress_percentage,
+              message: data.message,
+            });
+            setLoadingStep(data.message || data.current_step || "Processing...");
+          } else if (data.status === "success" || data.results) {
+            // Analysis complete
+            clearInterval(intervalId);
+            setProgressStatus(null);
+            resolve(data);
+          } else if (data.status === "error" || data.errors?.length > 0) {
+            clearInterval(intervalId);
+            setProgressStatus(null);
+            reject(new Error(data.errors?.[0] || "Analysis failed"));
+          }
+        } catch (err) {
+          clearInterval(intervalId);
+          setProgressStatus(null);
+          reject(err);
+        }
+      }, 25000); // Poll every 25 seconds
+    });
+  };
 
   const fetchAnswer = async () => {
     try {
@@ -154,17 +198,17 @@ export default function AnswerPage() {
           const analyzeLiteData = await analyzeLiteResponse.json();
           
           // Check if analysis started (we need to poll for progress)
-          if (analyzeLiteData.status === "started" && analyzeLiteData.analysis_id) {
+          if (analyzeLiteData.status === "started") {
             console.log("⏳ Analysis started, tracking progress...");
-            setAnalysisId(analyzeLiteData.analysis_id);
-            setShowProgress(true);
-            setLoading(false);
-            return; // Exit and wait for progress modal to complete
+            setLoadingStep("Analysis in progress...");
+            // Start polling for progress
+            analysisResult = await pollAnalyzeLiteProgress();
+          } else {
+            // If we got immediate results
+            analysisResult = analyzeLiteData;
           }
-
-          // If we got immediate results (shouldn't happen but handle it)
-          analysisResult = analyzeLiteData;
-          contradictions = analyzeLiteData?.results?.triple?.contradictions?.contradictions || [];
+          
+          contradictions = analysisResult?.results?.triple?.contradictions?.contradictions || [];
         }
 
       // Fetch Grokipedia article
@@ -223,80 +267,69 @@ export default function AnswerPage() {
     }
   };
 
-  const handleAnalysisComplete = async (analysisData: any) => {
-    console.log("✓ Analysis completed, processing results");
-    setShowProgress(false);
-    setLoading(true);
-    setLoadingStep("Analysis complete, fetching Grokipedia article...");
-
-    try {
-      const contradictions = analysisData?.results?.triple?.contradictions?.contradictions || [];
-
-      // Fetch Grokipedia article
-      console.log("📄 Fetching Grokipedia article");
-      const grokResponse = await fetch("/api/grokipedia", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: topicId }),
-      });
-
-      if (!grokResponse.ok) {
-        throw new Error("Failed to fetch Grokipedia article");
-      }
-
-      const grokData = await grokResponse.json();
-      const grokContent = grokData.content_text || "";
-
-      // Generate corrected version using contradictions
-      console.log(`🔧 Generating corrected version with ${contradictions.length} contradictions`);
-      const answerResponse = await fetch("/api/answer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          grokipediaContent: grokContent,
-          contradictions,
-        }),
-      });
-
-      if (!answerResponse.ok) {
-        throw new Error("Failed to generate corrected content");
-      }
-
-      const answerData = await answerResponse.json();
-
-      setData({
-        originalContent: grokContent,
-        correctedContent: answerData.correctedContent,
-        analysisResult: analysisData,
-        topic: topicId,
-      });
-    } catch (err) {
-      console.error("Error processing analysis results:", err);
-      setError(err instanceof Error ? err.message : "Failed to process results");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAnalysisError = (errorMessage: string) => {
-    console.error("Analysis error:", errorMessage);
-    setShowProgress(false);
-    setError(errorMessage);
-    setLoading(false);
-  };
-
-  // Show analysis progress modal
-  if (showProgress && analysisId) {
+  // Show loading state with progress
+  if (loading) {
     return (
-      <>
-        <AnalysisProgressModal
-          open={showProgress}
-          analysisId={analysisId}
-          progressEndpoint="http://localhost:8000"
-          onComplete={handleAnalysisComplete}
-          onError={handleAnalysisError}
-        />
-      </>
+      <div className="min-h-screen pt-36 pb-16 px-4">
+        <div className="max-w-6xl mx-auto">
+          <Button
+            variant="default"
+            onClick={() => router.back()}
+            className="mb-8 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+
+          {progressStatus ? (
+            <div className="bg-black/90 backdrop-blur-sm border border-primary/30 rounded-2xl p-8">
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <h2 className="text-2xl font-sentient text-primary">Analyzing Content</h2>
+              </div>
+              
+              {progressStatus.progress_percentage !== undefined && (
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-mono text-muted-foreground">
+                      Step {progressStatus.step_number} of {progressStatus.total_steps}
+                    </span>
+                    <span className="text-sm font-mono text-primary">
+                      {progressStatus.progress_percentage}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-black/50 rounded-full h-3 border border-input overflow-hidden">
+                    <div
+                      className="h-full bg-yellow-500 transition-all duration-500 ease-out"
+                      style={{ width: `${progressStatus.progress_percentage}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {progressStatus.current_step && (
+                <div className="text-center space-y-2">
+                  <p className="text-lg font-mono text-foreground uppercase tracking-wide">
+                    {progressStatus.current_step}
+                  </p>
+                  {progressStatus.message && (
+                    <p className="text-sm text-muted-foreground">
+                      {progressStatus.message}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-black/90 backdrop-blur-sm border border-primary/30 rounded-2xl p-8">
+              <div className="flex flex-col items-center justify-center gap-4">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-xl text-muted-foreground">{loadingStep}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -316,7 +349,7 @@ export default function AnswerPage() {
     );
   }
 
-  if (loading) {
+  if (false) {
     return (
       <div className="min-h-screen pt-32 pb-16 px-4">
         <div className="max-w-4xl mx-auto flex flex-col items-center justify-center gap-6">
