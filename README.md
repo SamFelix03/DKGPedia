@@ -301,6 +301,10 @@ For detailed documentation on all functionalities, tools, and API routes, see th
 
 #### 1. Contributors
 
+<img width="1159" height="644" alt="Screenshot 2025-11-28 at 9 31 14 PM" src="https://github.com/user-attachments/assets/1e191dba-d1cc-4f30-97a0-0ee82e330b9d" />
+
+
+
 Contributors are users who create and publish knowledge assets to the DKG. Their workflow involves:
 
 **Step 1: Topic Submission**
@@ -348,6 +352,9 @@ Contributors are users who create and publish knowledge assets to the DKG. Their
 - This incentivizes high-quality contributions
 
 #### 2. End Users / Query Users
+
+<img width="1159" height="644" alt="Screenshot 2025-11-28 at 9 30 58 PM" src="https://github.com/user-attachments/assets/8f1dfccb-4a4d-4bd0-a060-afe9c099b615" />
+
 
 End users search for topics and retrieve verified information from the DKG.
 
@@ -870,27 +877,5 @@ This comprehensive data structure ensures that:
 - **Flexible Access**: Individual result sections can be queried independently
 - **Efficient Storage**: JSON strings are stored efficiently in the DKG's graph database
 
----
 
-## 🚀 Getting Started
-
-[To be continued in next section...]
-
----
-
-## 📝 License
-
-[To be added...]
-
----
-
-## 🤝 Contributing
-
-[To be added...]
-
----
-
-## 📧 Contact
-
-[To be added...]
 
