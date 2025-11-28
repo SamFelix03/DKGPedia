@@ -62,16 +62,50 @@ export default function AssetPage() {
   const router = useRouter();
   const topicId = params.topicId as string;
   const { walletConnected, walletClient, connectWallet } = useWallet();
+  
+  const [mounted, setMounted] = useState(false);
   const [asset, setAsset] = useState<AssetData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [needsPayment, setNeedsPayment] = useState(false);
 
+  // Handle mounting and load from sessionStorage
   useEffect(() => {
-    if (topicId) {
+    setMounted(true);
+    
+    // Try to load from sessionStorage after mount
+    const cached = sessionStorage.getItem(`asset_${topicId}`);
+    if (cached) {
+      try {
+        const parsedData = JSON.parse(cached);
+        setAsset(parsedData);
+        setLoading(false);
+      } catch (e) {
+        console.error("Failed to parse cached asset data:", e);
+      }
+    }
+  }, [topicId]);
+
+  // Save asset to sessionStorage whenever it changes
+  useEffect(() => {
+    if (mounted && asset) {
+      sessionStorage.setItem(`asset_${topicId}`, JSON.stringify(asset));
+    }
+  }, [asset, topicId, mounted]);
+
+  // Clear sessionStorage when component unmounts (user navigates away)
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem(`asset_${topicId}`);
+    };
+  }, [topicId]);
+
+  // Fetch data if not cached
+  useEffect(() => {
+    if (mounted && topicId && !asset) {
       fetchAsset();
     }
-  }, [topicId, walletClient]);
+  }, [topicId, walletClient, mounted, asset]);
 
   const fetchAsset = async () => {
     try {

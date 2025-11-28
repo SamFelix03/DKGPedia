@@ -13,12 +13,18 @@ import {
 import { Loader2, Plus, X, CheckCircle2 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import AnalysisResults from "@/components/analysis-results";
+import { AnalysisProgressModal } from "@/components/analysis-progress-modal";
 
 interface AnalysisResult {
   status: string;
   analysis_id: string;
   topic: string;
   steps_completed: string[];
+  image_urls?: {
+    "similarity_heatmap.png"?: string;
+    "embedding_space.png"?: string;
+    "bias_compass.png"?: string;
+  };
   results: {
     fetch: {
       status: string;
@@ -434,6 +440,8 @@ export default function ContributePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ual: string; verification_url?: string } | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [showProgress, setShowProgress] = useState(false);
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
 
   // Form state
   const [title, setTitle] = useState("Cattle");
@@ -500,6 +508,18 @@ export default function ContributePage() {
     }
   };
 
+  const handleAnalysisComplete = (analysisData: any) => {
+    console.log("✓ Analysis completed");
+    setShowProgress(false);
+    setAnalysisResult(analysisData);
+  };
+
+  const handleAnalysisError = (errorMessage: string) => {
+    console.error("Analysis error:", errorMessage);
+    setShowProgress(false);
+    setError(errorMessage);
+  };
+
   const handlePublish = async () => {
     if (!analysisResult) {
       setError("No analysis result to publish");
@@ -540,6 +560,7 @@ export default function ContributePage() {
           analysis_id: analysisResult.analysis_id,
           topic: analysisResult.topic,
           steps_completed: analysisResult.steps_completed,
+          image_urls: analysisResult.image_urls || undefined,
           results: {
             fetch: analysisResult.results.fetch,
             triple: analysisResult.results.triple,
@@ -605,6 +626,17 @@ export default function ContributePage() {
 
   return (
     <div className="min-h-screen pt-36 pb-16 px-4">
+      {/* Analysis Progress Modal */}
+      {showProgress && analysisId && (
+        <AnalysisProgressModal
+          open={showProgress}
+          analysisId={analysisId}
+          progressEndpoint="http://localhost:8000"
+          onComplete={handleAnalysisComplete}
+          onError={handleAnalysisError}
+        />
+      )}
+
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="font-sentient text-5xl font-light mb-4 text-center">
