@@ -1,6 +1,6 @@
-# DKGPedia - A Better Grokipedia
+# DKGPedia - A More Accurate Grokipedia
 
-> **Decentralized Knowledge Graph-powered platform for accurate, hallucination-free information retrieval**
+> **OriginTral DKG platform for accurate, hallucination-free information retrieval, Submitted for Track 1: Grokipedia vs Wikipedia**
 
 <img width="1342" height="765" alt="Screenshot 2025-11-29 at 3 50 38 AM" src="https://github.com/user-attachments/assets/c61ca179-fdc0-4d57-b754-8703edf13c90" />
 
