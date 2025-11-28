@@ -94,27 +94,43 @@ The fastest way to experience DKGPedia is through the search feature:
 
 ---
 
-### Quick Start Recommendation
-
-**For First-Time Users**: 
-1. Start with **Search** to see how DKGPedia works
-2. Try searching for a topic that might not be in the DKG to see the analyze-lite workflow
-3. If you find a paid topic, use the faucet to get test USDC and experience the payment flow
-4. Once familiar, consider contributing a full knowledge asset (remember: it takes 40-45 minutes!)
-
----
-
 ## 📖 Table of Contents
 
+- [Important Links](#important-links)
+- [Demo Instructions](#demo-instructions)
 - [Introduction](#introduction)
+  - [How It Works](#how-it-works)
+  - [Contribution System](#contribution-system)
+  - [Trusted Knowledge Assets](#trusted-knowledge-assets)
 - [Three-Layer Architecture](#three-layer-architecture)
+  - [Agent Layer](#agent-layer)
+  - [Knowledge Layer](#knowledge-layer)
+  - [Trust Layer](#trust-layer)
+- [The DKGPedia Plugin](#the-dkgpedia-plugin)
+  - [Overview](#overview)
+  - [Key Functionalities](#key-functionalities)
+  - [JSON-LD Structure](#json-ld-structure)
 - [How It All Works](#how-it-all-works)
   - [User Types and Workflows](#user-types-and-workflows)
   - [Comparison Engine System](#comparison-engine-system)
+    - [1. Knowledge Graph Triple Extraction & Comparison System](#1-knowledge-graph-triple-extraction-comparison-system)
+    - [2. Semantic Drift Detection System](#2-semantic-drift-detection-system)
+    - [3. Fact-Checking & Hallucination Detection System](#3-fact-checking-hallucination-detection-system)
+    - [4. Sentiment Analysis & Bias Detection System](#4-sentiment-analysis--bias-detection-system)
+    - [5. Multimodal Analysis System](#5-multimodal-analysis-system)
+    - [6. Editorial Judging System](#6-editorial-judging-system)
+    - [Content Fetching System](#content-fetching-system)
   - [DKG Node Interaction](#dkg-node-interaction)
   - [x402 Payment Protocol Implementation](#x402-payment-protocol-implementation)
+    - [Server-Side Implementation](#server-side-implementation)
+    - [Client-Side Implementation](#client-side-implementation)
   - [Data Structure](#data-structure)
+    - [Core Asset Structure](#core-asset-structure)
+    - [Analysis Results Structure](#analysis-results-structure)
+    - [Storage in DKG](#storage-in-dkg)
 - [Conclusion](#conclusion)
+  - [Key Achievements](#key-achievements)
+  - [Impact](#impact)
 
 ---
 
