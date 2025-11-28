@@ -464,6 +464,91 @@ export default function AnalysisResults({
     return "text-red-400";
   };
 
+  // Determine which sections have data to display
+  const showFetchStats = !!data.results?.fetch && (
+    data.results.fetch.grokipedia?.word_count !== undefined ||
+    data.results.fetch.grokipedia?.char_count !== undefined ||
+    data.results.fetch.wikipedia?.word_count !== undefined ||
+    data.results.fetch.wikipedia?.char_count !== undefined ||
+    data.results.fetch.grokipedia?.references_count !== undefined ||
+    data.results.fetch.wikipedia?.references_count !== undefined ||
+    data.results.fetch.grokipedia?.sections !== undefined
+  );
+
+  const showTripleStats = !!data.results?.triple && (
+    data.results.triple.basic_stats?.total_triples !== undefined ||
+    data.results.triple.basic_stats?.source_a_triples !== undefined ||
+    data.results.triple.basic_stats?.source_b_triples !== undefined ||
+    data.results.triple.semantic_similarity?.average_similarity !== undefined ||
+    data.results.triple.semantic_similarity?.max_similarity !== undefined ||
+    data.results.triple.contradictions?.contradiction_count !== undefined
+  );
+
+  const showSemanticDrift = !!data.results?.semanticdrift && (
+    data.results.semanticdrift.semantic_drift_score?.overall_drift_score !== undefined ||
+    data.results.semanticdrift.semantic_drift_score?.drift_percentage !== undefined ||
+    !!data.results.semanticdrift.semantic_drift_score?.interpretation
+  );
+
+  const showGrokFactCheck = !!data.results?.factcheck?.metrics?.grokipedia && (
+    data.results.factcheck.metrics.grokipedia.external_verification_score?.verification_score !== undefined ||
+    data.results.factcheck.metrics.grokipedia.fabrication_risk_score?.fabrication_risk_score !== undefined ||
+    !!data.results.factcheck.metrics.grokipedia.fabrication_risk_score?.risk_level
+  );
+
+  const showWikiFactCheck = !!data.results?.factcheck?.metrics?.wikipedia && (
+    data.results.factcheck.metrics.wikipedia.external_verification_score?.verification_score !== undefined ||
+    data.results.factcheck.metrics.wikipedia.fabrication_risk_score?.fabrication_risk_score !== undefined ||
+    !!data.results.factcheck.metrics.wikipedia.fabrication_risk_score?.risk_level
+  );
+
+  const showSentiment = !!data.results?.sentiment && (
+    data.results.sentiment.sentiment_analysis?.grokipedia_average_polarity !== undefined ||
+    data.results.sentiment.sentiment_analysis?.wikipedia_average_polarity !== undefined ||
+    data.results.sentiment.sentiment_analysis?.sentiment_shifts_count !== undefined ||
+    data.results.sentiment.framing_analysis?.grokipedia_bias_score !== undefined ||
+    data.results.sentiment.framing_analysis?.wikipedia_bias_score !== undefined
+  );
+
+  const showMultimodal = !!data.results?.multimodal && (
+    data.results.multimodal.summary?.images_found !== undefined ||
+    data.results.multimodal.summary?.images_processed !== undefined ||
+    data.results.multimodal.summary?.videos_found !== undefined ||
+    data.results.multimodal.summary?.text_chunks !== undefined ||
+    data.results.multimodal.multimodal_consistency_index?.mci_score !== undefined ||
+    data.results.multimodal.image_to_text_alignment?.image_relevance_score !== undefined
+  );
+
+  const showFactCheck = !!data.results?.factcheck && (
+    (data.results.factcheck.summary?.total_contradictions !== undefined) ||
+    showGrokFactCheck ||
+    showWikiFactCheck
+  );
+
+  const showJudging = !!data.results?.judging && (
+    !!data.results.judging.model ||
+    !!data.results.judging.report_preview ||
+    !!data.results.judging.full_report
+  );
+
+  const showVisualizations = !!data.image_urls && Object.values(data.image_urls).some(url => !!url);
+
+  // Determine if overview tab has content
+  const showOverview = showVisualizations || showFetchStats || showTripleStats || showSemanticDrift || showGrokFactCheck || showWikiFactCheck || showSentiment || showMultimodal;
+
+  // Determine default tab (first available tab)
+  const getDefaultTab = () => {
+    if (showOverview) return "overview";
+    if (showFetchStats) return "content";
+    if (showTripleStats) return "triples";
+    if (showSemanticDrift) return "semantic";
+    if (showFactCheck) return "factcheck";
+    if (showSentiment) return "sentiment";
+    if (showMultimodal) return "multimodal";
+    if (showJudging) return "judge";
+    return "overview";
+  };
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -504,7 +589,7 @@ export default function AnalysisResults({
       )}
 
       {/* Tabs Interface */}
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs defaultValue={getDefaultTab()} className="w-full">
         <TabsList className="bg-black/90 border border-input rounded-lg p-2 w-full justify-start overflow-x-auto h-auto scrollbar-hide"
           style={{
             scrollbarWidth: 'none',    // For Firefox
@@ -516,68 +601,85 @@ export default function AnalysisResults({
               display: none;
             }
           `}</style>
-          <TabsTrigger 
-            value="overview" 
-            className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
-          >
-            <BarChart3 className="h-5 w-5" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger 
-            value="content" 
-            className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
-          >
-            <FileText className="h-5 w-5" />
-            Content
-          </TabsTrigger>
-          <TabsTrigger 
-            value="triples" 
-            className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
-          >
-            <Database className="h-5 w-5" />
-            Knowledge Triples
-          </TabsTrigger>
-          <TabsTrigger 
-            value="semantic" 
-            className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
-          >
-            <Brain className="h-5 w-5" />
-            Semantic Drift
-          </TabsTrigger>
-          <TabsTrigger 
-            value="factcheck" 
-            className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
-          >
-            <Shield className="h-5 w-5" />
-            Fact Check
-          </TabsTrigger>
-          <TabsTrigger 
-            value="sentiment" 
-            className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
-          >
-            <MessageSquare className="h-5 w-5" />
-            Sentiment & Bias
-          </TabsTrigger>
-          <TabsTrigger 
-            value="multimodal" 
-            className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
-          >
-            <Image className="h-5 w-5" />
-            Multimodal
-          </TabsTrigger>
-          <TabsTrigger 
-            value="judge" 
-            className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
-          >
-            <Eye className="h-5 w-5" />
-            AI Judge
-          </TabsTrigger>
+          {showOverview && (
+            <TabsTrigger 
+              value="overview" 
+              className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
+            >
+              <BarChart3 className="h-5 w-5" />
+              Overview
+            </TabsTrigger>
+          )}
+          {showFetchStats && (
+            <TabsTrigger 
+              value="content" 
+              className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
+            >
+              <FileText className="h-5 w-5" />
+              Content
+            </TabsTrigger>
+          )}
+          {showTripleStats && (
+            <TabsTrigger 
+              value="triples" 
+              className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
+            >
+              <Database className="h-5 w-5" />
+              Knowledge Triples
+            </TabsTrigger>
+          )}
+          {showSemanticDrift && (
+            <TabsTrigger 
+              value="semantic" 
+              className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
+            >
+              <Brain className="h-5 w-5" />
+              Semantic Drift
+            </TabsTrigger>
+          )}
+          {showFactCheck && (
+            <TabsTrigger 
+              value="factcheck" 
+              className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
+            >
+              <Shield className="h-5 w-5" />
+              Fact Check
+            </TabsTrigger>
+          )}
+          {showSentiment && (
+            <TabsTrigger 
+              value="sentiment" 
+              className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
+            >
+              <MessageSquare className="h-5 w-5" />
+              Sentiment & Bias
+            </TabsTrigger>
+          )}
+          {showMultimodal && (
+            <TabsTrigger 
+              value="multimodal" 
+              className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
+            >
+              <Image className="h-5 w-5" />
+              Multimodal
+            </TabsTrigger>
+          )}
+          {showJudging && (
+            <TabsTrigger 
+              value="judge" 
+              className="gap-2 px-4 py-3 text-base font-mono font-bold data-[state=active]:bg-yellow-500 data-[state=active]:text-black data-[state=active]:border-yellow-500"
+            >
+              <Eye className="h-5 w-5" />
+              AI Judge
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="mt-6">
-          {/* Analysis Images */}
-          {data.image_urls && Object.keys(data.image_urls).length > 0 && (
+        {showOverview && (
+          <TabsContent value="overview" className="mt-6">
+            {/* Analysis Images */}
+            {showVisualizations && data.image_urls && (
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6 mb-6">
               <h3 className="text-xl uppercase text-primary mb-6 flex items-center gap-2">
                 <Image className="h-5 w-5" />
@@ -620,7 +722,7 @@ export default function AnalysisResults({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Fetch Stats */}
-        {data.results?.fetch && (
+        {showFetchStats && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <FileText className="h-5 w-5 text-blue-400" />
@@ -680,7 +782,7 @@ export default function AnalysisResults({
         )}
 
         {/* Triple Analysis */}
-        {data.results?.triple && (
+        {showTripleStats && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="h-5 w-5 text-purple-400" />
@@ -740,7 +842,7 @@ export default function AnalysisResults({
         )}
 
         {/* Semantic Drift */}
-        {data.results?.semanticdrift && (
+        {showSemanticDrift && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Brain className="h-5 w-5 text-cyan-400" />
@@ -773,7 +875,7 @@ export default function AnalysisResults({
         )}
 
         {/* Fact Check - Grokipedia */}
-        {data.results?.factcheck?.metrics?.grokipedia && (
+        {showGrokFactCheck && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <CheckCircle className="h-5 w-5 text-green-400" />
@@ -806,7 +908,7 @@ export default function AnalysisResults({
         )}
 
         {/* Fact Check - Wikipedia */}
-        {data.results?.factcheck?.metrics?.wikipedia && (
+        {showWikiFactCheck && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="h-5 w-5 text-orange-400" />
@@ -839,7 +941,7 @@ export default function AnalysisResults({
         )}
 
         {/* Sentiment Analysis */}
-        {data.results?.sentiment && (
+        {showSentiment && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Scale className="h-5 w-5 text-pink-400" />
@@ -901,7 +1003,7 @@ export default function AnalysisResults({
         )}
 
         {/* Multimodal */}
-        {data.results?.multimodal && (
+        {showMultimodal && (
         <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Image className="h-5 w-5 text-teal-400" />
@@ -960,11 +1062,12 @@ export default function AnalysisResults({
         </div>
         )}
           </div>
-        </TabsContent>
+          </TabsContent>
+        )}
 
         {/* Content Tab */}
         <TabsContent value="content" className="mt-6 space-y-6">
-          {data.results?.fetch && (
+          {showFetchStats && (
           <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
             <h3 className="text-xl uppercase text-blue-400 mb-4 flex items-center gap-2">
               <FileText className="h-5 w-5" />
@@ -1061,7 +1164,7 @@ export default function AnalysisResults({
 
         {/* Knowledge Triples Tab */}
         <TabsContent value="triples" className="mt-6 space-y-6">
-          {data.results?.triple && (
+          {showTripleStats && (
             <>
           {/* Basic Stats */}
           {data.results.triple.basic_stats && (
@@ -1125,9 +1228,14 @@ export default function AnalysisResults({
               <h3 className="text-xl uppercase text-yellow-500 mb-6 flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
                 Detected Contradictions
+                {data.results.triple.contradictions.contradictions.length > 10 && (
+                  <span className="text-sm text-muted-foreground font-normal">
+                    (Showing first 10 of {data.results.triple.contradictions.contradictions.length})
+                  </span>
+                )}
               </h3>
               <div className="space-y-4">
-                {data.results.triple.contradictions.contradictions.map((contradiction, index) => (
+                {data.results.triple.contradictions.contradictions.slice(0, 10).map((contradiction, index) => (
                   <div
                     key={index}
                     className="bg-black/50 border-2 border-yellow-500/30 rounded-xl p-6"
@@ -1374,7 +1482,7 @@ export default function AnalysisResults({
 
         {/* Semantic Drift Tab */}
         <TabsContent value="semantic" className="mt-6 space-y-6">
-          {data.results?.semanticdrift && (
+          {showSemanticDrift && (
             <>
           {/* Overall Drift Score */}
           {data.results.semanticdrift.semantic_drift_score && (
@@ -1526,7 +1634,7 @@ export default function AnalysisResults({
 
         {/* Fact Check Tab */}
         <TabsContent value="factcheck" className="mt-6 space-y-6">
-          {data.results?.factcheck && (
+          {showFactCheck && (
             <>
           {/* Summary */}
           {data.results.factcheck.summary && (
@@ -1645,7 +1753,7 @@ export default function AnalysisResults({
 
         {/* Sentiment & Bias Tab */}
         <TabsContent value="sentiment" className="mt-6 space-y-6">
-          {data.results?.sentiment && (
+          {showSentiment && (
             <>
           {/* Overview */}
           {data.results?.sentiment?.sentiment_analysis && (
@@ -1764,7 +1872,7 @@ export default function AnalysisResults({
 
         {/* Multimodal Tab */}
         <TabsContent value="multimodal" className="mt-6 space-y-6">
-          {data.results?.multimodal && (
+          {showMultimodal && (
             <>
           {/* Summary */}
           {data.results.multimodal.summary && (
@@ -1883,7 +1991,7 @@ export default function AnalysisResults({
 
         {/* AI Judge Tab */}
         <TabsContent value="judge" className="mt-6">
-          {data.results?.judging && (
+          {showJudging && (
             <>
           <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6">
             <h3 className="text-xl uppercase text-primary mb-4 flex items-center gap-2">

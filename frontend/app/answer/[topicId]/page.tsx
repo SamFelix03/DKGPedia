@@ -9,7 +9,9 @@ import { PaymentInfoModal } from "@/components/payment-info-modal";
 import { useWallet } from "@/contexts/wallet-context";
 import AnalysisResults from "@/components/analysis-results";
 import MarkdownRenderer from "@/components/markdown-renderer";
+import DiffViewer from "@/components/diff-viewer";
 import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 
 // @ts-ignore - x402-axios types
 import { withPaymentInterceptor } from "x402-axios";
@@ -49,6 +51,8 @@ export default function AnswerPage() {
     progress_percentage?: number;
     message?: string;
   } | null>(null);
+  const [isFetching, setIsFetching] = useState(false); // Guard to prevent concurrent fetches
+  const [hasPublished, setHasPublished] = useState(false); // Track if we've already published for this topicId
 
   // Handle mounting and load from sessionStorage
   useEffect(() => {
@@ -83,15 +87,22 @@ export default function AnswerPage() {
 
   // Fetch data if not cached
   useEffect(() => {
-    if (mounted && topicId && !data) {
+    if (mounted && topicId && !data && !isFetching) {
       fetchAnswer();
     }
-  }, [topicId, mounted, data]);
+  }, [topicId, mounted, data, isFetching]);
 
   const pollAnalyzeLiteProgress = async (): Promise<any> => {
     return new Promise((resolve, reject) => {
+      let isCompleted = false;
       const intervalId = setInterval(async () => {
+        if (isCompleted) {
+          console.log("⚠️ Already completed, skipping poll");
+          return;
+        }
+
         try {
+          console.log("📡 Polling /api/analyze-lite/progress...");
           const response = await fetch("/api/analyze-lite/progress");
           
           if (!response.ok) {
@@ -99,8 +110,32 @@ export default function AnswerPage() {
           }
 
           const data = await response.json();
+          console.log("📥 Progress response:", JSON.stringify(data, null, 2));
 
-          if (data.status === "in_progress" || data.current_step) {
+          // Check for completion FIRST before checking in_progress
+          if (data.status === "completed" || data.current_step === "completed" || (data.results && data.progress_percentage === 100)) {
+            // Analysis complete - transform the structure to match expected format
+            console.log("✅ Analysis complete! Stopping polling.");
+            isCompleted = true;
+            clearInterval(intervalId);
+            setProgressStatus(null);
+            
+            // Transform the nested structure: data.results.results -> data.results
+            const transformedData = {
+              status: data.status || "success",
+              analysis_id: data.analysis_id,
+              topic: data.results?.topic || data.topic,
+              steps_completed: data.results?.steps_completed || [],
+              results: data.results?.results || data.results,
+              errors: data.errors || [],
+              timestamp: data.timestamp,
+              execution_time_seconds: data.execution_time_seconds || 0,
+              image_urls: data.results?.image_urls || data.image_urls,
+            };
+            
+            resolve(transformedData);
+          } else if (data.status === "in_progress" || (data.current_step && data.current_step !== "completed")) {
+            console.log(`⏳ In progress: ${data.current_step} (${data.progress_percentage}%)`);
             setProgressStatus({
               current_step: data.current_step,
               step_number: data.step_number,
@@ -109,17 +144,18 @@ export default function AnswerPage() {
               message: data.message,
             });
             setLoadingStep(data.message || data.current_step || "Processing...");
-          } else if (data.status === "success" || data.results) {
-            // Analysis complete
-            clearInterval(intervalId);
-            setProgressStatus(null);
-            resolve(data);
           } else if (data.status === "error" || data.errors?.length > 0) {
+            console.log("❌ Analysis error:", data.errors?.[0]);
+            isCompleted = true;
             clearInterval(intervalId);
             setProgressStatus(null);
             reject(new Error(data.errors?.[0] || "Analysis failed"));
+          } else {
+            console.log("⚠️ Unexpected response format:", data);
           }
         } catch (err) {
+          console.error("❌ Error polling progress:", err);
+          isCompleted = true;
           clearInterval(intervalId);
           setProgressStatus(null);
           reject(err);
@@ -129,7 +165,14 @@ export default function AnswerPage() {
   };
 
   const fetchAnswer = async () => {
+    // Prevent concurrent execution
+    if (isFetching) {
+      console.log("⚠️ fetchAnswer already in progress, skipping duplicate call");
+      return;
+    }
+
     try {
+      setIsFetching(true);
       setLoading(true);
       setLoadingStep("Checking DKG for existing data...");
       setError(null);
@@ -149,14 +192,16 @@ export default function AnswerPage() {
       // Try to fetch from DKG with payment support
       try {
         const dkgResponse = await apiClient.get(
-          `/dkgpedia/community-notes/topic/${encodeURIComponent(topicId)}`
+          `/dkgpedia/community-notes/${encodeURIComponent(topicId)}`
         );
         dkgData = dkgResponse.data;
         
         if (dkgData.found && dkgData.analysisResult) {
           console.log("✓ Asset found in DKG and accessible");
           analysisResult = dkgData.analysisResult;
-          contradictions = dkgData.analysisResult?.results?.triple?.contradictions?.contradictions || [];
+          // Limit contradictions to 10
+          const allContradictions = dkgData.analysisResult?.results?.triple?.contradictions?.contradictions || [];
+          contradictions = allContradictions.slice(0, 10);
         }
       } catch (dkgError: any) {
         // Check if it's a 402 Payment Required error
@@ -208,15 +253,106 @@ export default function AnswerPage() {
             analysisResult = analyzeLiteData;
           }
           
-          contradictions = analysisResult?.results?.triple?.contradictions?.contradictions || [];
+          // After getting analysis results (from polling or immediate), publish to DKG via API route
+          // Use the SAME topicId for both publishing and fetching to ensure they match
+          // Check if we've already published or if asset already exists to prevent duplicates
+          if (analysisResult && !hasPublished) {
+            // Double-check if asset already exists in DKG before publishing
+            try {
+              const checkResponse = await apiClient.get(
+                `/dkgpedia/community-notes/${encodeURIComponent(topicId)}`
+              );
+              if (checkResponse.data.found) {
+                console.log("✓ Asset already exists in DKG, skipping publish");
+                setHasPublished(true);
+              }
+            } catch (checkError: any) {
+              // Asset doesn't exist (404) or other error, proceed with publishing
+              if (checkError.response?.status !== 404) {
+                console.warn("⚠️ Error checking for existing asset:", checkError);
+              }
+            }
+
+            // Only publish if we haven't published yet and asset doesn't exist
+            if (!hasPublished) {
+              console.log("📤 Publishing analyze-lite results to DKG...");
+              setLoadingStep("Publishing to DKG...");
+              
+              // Use the same topicId from URL for both publishing and fetching
+              // This ensures they match and the asset can be retrieved after publishing
+              const publishPayload = {
+                topicId: topicId, // Use the same topicId from URL
+                title: analysisResult.topic || topicId,
+                contributionType: "regular",
+                analysisResult: analysisResult,
+              };
+
+              console.log(`📤 Publishing with topicId: ${topicId} (same as fetch topicId)`);
+
+              // Retry logic for publishing
+              const maxRetries = 3;
+              const retryDelay = 2000; // 2 seconds
+              let lastError: Error | null = null;
+
+              for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                  setLoadingStep(`Publishing to DKG... (Attempt ${attempt}/${maxRetries})`);
+                  
+                  const publishResponse = await fetch("/api/dkgpedia/publish", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(publishPayload),
+                  });
+
+                  if (!publishResponse.ok) {
+                    const errorData = await publishResponse.json();
+                    throw new Error(`Failed to publish to DKG: ${errorData.error || publishResponse.status}`);
+                  }
+
+                  const publishData = await publishResponse.json();
+                  console.log(`✅ Successfully published to DKG with UAL: ${publishData.ual}, topicId: ${topicId} (attempt ${attempt})`);
+                  setHasPublished(true); // Mark as published to prevent duplicates
+                  lastError = null;
+                  break; // Success, exit retry loop
+                } catch (error) {
+                  lastError = error instanceof Error ? error : new Error(String(error));
+                  console.error(`❌ Publish attempt ${attempt}/${maxRetries} failed:`, lastError.message);
+                  
+                  if (attempt < maxRetries) {
+                    console.log(`⏳ Retrying in ${retryDelay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                  } else {
+                    // All retries exhausted
+                    throw lastError;
+                  }
+                }
+              }
+
+              if (lastError) {
+                throw lastError;
+              }
+            }
+          } else if (hasPublished) {
+            console.log("⚠️ Already published for this topicId, skipping duplicate publish");
+          }
+          
+          // Limit contradictions to 10
+          const allContradictions = analysisResult?.results?.triple?.contradictions?.contradictions || [];
+          contradictions = allContradictions.slice(0, 10);
         }
 
+      // Determine the actual topic name for Grokipedia search
+      // Use analysisResult.topic or dkgData.title instead of topicId (which might be a UUID)
+      const actualTopicName = analysisResult?.topic || dkgData?.title || topicId;
+      console.log(`📄 Fetching Grokipedia article for topic: ${actualTopicName} (topicId: ${topicId})`);
+
       // Fetch Grokipedia article
-      console.log("📄 Fetching Grokipedia article");
       const grokResponse = await fetch("/api/grokipedia", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: topicId }),
+        body: JSON.stringify({ query: actualTopicName }),
       });
 
       if (!grokResponse.ok) {
@@ -247,13 +383,14 @@ export default function AnswerPage() {
         originalContent: grokContent,
         correctedContent: answerData.correctedContent,
         analysisResult,
-        topic: topicId,
+        topic: actualTopicName, // Use actual topic name instead of topicId (which might be a UUID)
       });
     } catch (err) {
       console.error("Error fetching answer:", err);
       setError(err instanceof Error ? err.message : "Failed to load answer");
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   };
 
@@ -441,7 +578,7 @@ export default function AnswerPage() {
               <div className="flex items-center gap-2 mb-6">
                 <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
                 <h2 className="text-xl uppercase text-green-400 font-mono">
-                  Wikipedia-Corrected Version
+                  Corrected Version
                 </h2>
               </div>
               <MarkdownRenderer content={data.correctedContent} />
@@ -450,10 +587,19 @@ export default function AnswerPage() {
 
           <TabsContent value="original" className="mt-0">
             <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-8">
-              <h2 className="text-xl uppercase text-primary mb-6 font-mono">
-                Original Grokipedia Article
-              </h2>
-              <MarkdownRenderer content={data.originalContent} />
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl uppercase text-primary font-mono">
+                  Original Grokipedia Article
+                </h2>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="h-3 w-3 rounded bg-red-500/40 border border-red-500/60"></div>
+                  <span className="font-mono">Highlighted = Changed</span>
+                </div>
+              </div>
+              <DiffViewer 
+                original={data.originalContent} 
+                corrected={data.correctedContent} 
+              />
             </div>
           </TabsContent>
 
