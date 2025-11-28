@@ -32,3 +32,4 @@ python-multipart
 # AWS S3 dependencies
 boto3
 pyngrok
+webdriver-manager
