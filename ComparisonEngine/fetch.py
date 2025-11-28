@@ -3,11 +3,27 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from datetime import datetime
 import time
 import os
 import requests
+import shutil
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Try to import webdriver-manager for automatic ChromeDriver management
+try:
+    from webdriver_manager.chrome import ChromeDriverManager
+    from selenium.webdriver.chrome.service import Service as ChromeService
+    WEBDRIVER_MANAGER_AVAILABLE = True
+except ImportError:
+    WEBDRIVER_MANAGER_AVAILABLE = False
+    logger.warning("webdriver-manager not available. Install with: pip install webdriver-manager")
 
 
 class WikipediaAPIScraper:
@@ -109,6 +125,31 @@ class WikipediaAPIScraper:
             return {"error": str(e)}
 
 
+def get_chromedriver_path():
+    """Find ChromeDriver path, checking common locations"""
+    # Check if chromedriver is in PATH
+    chromedriver_path = shutil.which('chromedriver')
+    if chromedriver_path:
+        logger.info(f"Found ChromeDriver in PATH: {chromedriver_path}")
+        return chromedriver_path
+    
+    # Check common installation paths
+    common_paths = [
+        '/usr/bin/chromedriver',
+        '/usr/local/bin/chromedriver',
+        '/opt/chromedriver/chromedriver',
+        '/usr/lib/chromium-browser/chromedriver',
+    ]
+    
+    for path in common_paths:
+        if os.path.exists(path) and os.access(path, os.X_OK):
+            logger.info(f"Found ChromeDriver at: {path}")
+            return path
+    
+    logger.warning("ChromeDriver not found in common paths, will try webdriver-manager")
+    return None
+
+
 class GrokipediaSeleniumScraper:
     """Scraper for Grokipedia using Selenium WebDriver"""
     
@@ -119,7 +160,7 @@ class GrokipediaSeleniumScraper:
         Args:
             headless: Run browser in headless mode (no GUI)
         """
-        options = webdriver.ChromeOptions()
+        options = Options()
         
         if headless:
             options.add_argument('--headless')
@@ -127,10 +168,49 @@ class GrokipediaSeleniumScraper:
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--remote-debugging-port=9222')
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option('useAutomationExtension', False)
         
-        self.driver = webdriver.Chrome(options=options)
+        # Binary location (check common Chrome/Chromium paths)
+        chrome_binary_paths = [
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            '/usr/local/bin/chrome',
+        ]
+        
+        for binary_path in chrome_binary_paths:
+            if os.path.exists(binary_path):
+                options.binary_location = binary_path
+                logger.info(f"Using Chrome binary at: {binary_path}")
+                break
+        
+        # Try to find ChromeDriver
+        chromedriver_path = get_chromedriver_path()
+        
+        # Create service with ChromeDriver
+        if chromedriver_path:
+            # Use found ChromeDriver
+            service = Service(chromedriver_path)
+            self.driver = webdriver.Chrome(service=service, options=options)
+            logger.info(f"Using ChromeDriver from: {chromedriver_path}")
+        elif WEBDRIVER_MANAGER_AVAILABLE:
+            # Use webdriver-manager to automatically download and manage ChromeDriver
+            try:
+                service = ChromeService(ChromeDriverManager().install())
+                self.driver = webdriver.Chrome(service=service, options=options)
+                logger.info("Using webdriver-manager for ChromeDriver")
+            except Exception as e:
+                logger.error(f"webdriver-manager failed: {e}")
+                raise Exception(f"Failed to setup ChromeDriver with webdriver-manager: {str(e)}")
+        else:
+            # Fallback: Let Selenium try to find ChromeDriver automatically
+            logger.warning("No ChromeDriver found, letting Selenium auto-detect (may fail)")
+            self.driver = webdriver.Chrome(options=options)
+        
         self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         self.wait = WebDriverWait(self.driver, 10)
     
