@@ -192,7 +192,7 @@ async def shutdown_event():
             logger.warning(f"[WARNING] Error closing ngrok tunnel: {e}")
 
 # S3 Configuration
-S3_BUCKET_NAME = "cummaimages"
+S3_BUCKET_NAME = "real-estate-brochures-tenori"
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-south-1")
