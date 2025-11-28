@@ -1904,7 +1904,12 @@ const dummyResponse = {
     },
     "errors": [],
     "timestamp": "2025-11-27T16:30:22.816263",
-    "execution_time_seconds": 883.5527801513672
+    "execution_time_seconds": 883.5527801513672,
+    "image_urls": {
+        "similarity_heatmap.png": "https://cummaimages.s3.ap-south-1.amazonaws.com/analysis_20251128_160036_Cattle/similarity_heatmap.png",
+        "embedding_space.png": "https://cummaimages.s3.ap-south-1.amazonaws.com/analysis_20251128_160036_Cattle/embedding_space.png",
+        "bias_compass.png": "https://cummaimages.s3.ap-south-1.amazonaws.com/analysis_20251128_160036_Cattle/bias_compass.png"
+    },
 }
 
 export async function POST(request: NextRequest) {
