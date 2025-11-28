@@ -27,6 +27,7 @@ interface SearchResult {
   notableInstances?: Array<{ content: string; category: string }>;
   primarySource?: string;
   secondarySource?: string;
+  isSuggestion?: boolean; // Flag for suggestion items
 }
 
 export function Hero() {
@@ -63,16 +64,35 @@ export function Hero() {
     setShowSuggestions(true);
 
     try {
-      const response = await fetch(
-        `/api/dkgpedia/search?keyword=${encodeURIComponent(searchQuery)}&limit=10`
-      );
-      const data = await response.json();
+      // Fetch both DKG results and suggestions in parallel
+      const [dkgResponse, suggestionsResponse] = await Promise.all([
+        fetch(`/api/dkgpedia/search?keyword=${encodeURIComponent(searchQuery)}&limit=10`),
+        fetch('/api/suggestions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: searchQuery }),
+        }),
+      ]);
 
-      if (data.found && data.notes) {
-        setSearchResults(data.notes);
-      } else {
-        setSearchResults([]);
-      }
+      const dkgData = await dkgResponse.json();
+      const suggestionsData = await suggestionsResponse.json();
+
+      // Combine results: DKG results first, then suggestions
+      const dkgResults: SearchResult[] = dkgData.found && dkgData.notes ? dkgData.notes : [];
+      
+      // Map suggestions to SearchResult format with isSuggestion flag
+      const suggestionResults: SearchResult[] = 
+        suggestionsData.status === 'success' && suggestionsData.suggestions
+          ? suggestionsData.suggestions.map((suggestion: string) => ({
+              topicId: suggestion,
+              title: suggestion,
+              summary: '',
+              isSuggestion: true,
+            }))
+          : [];
+
+      // Combine: DKG results first, then suggestions
+      setSearchResults([...dkgResults, ...suggestionResults]);
     } catch (error) {
       console.error("Search error:", error);
       setSearchResults([]);
@@ -96,26 +116,28 @@ export function Hero() {
   const handleSuggestionClick = (result: SearchResult) => {
     setShowSuggestions(false);
     
-    // If paywalled, show payment modal instead of navigating directly
-    if (result.isPaywalled && result.priceUsd !== undefined) {
+    // If it's a paywalled user-contributed asset, show payment modal first
+    if (!result.isSuggestion && result.isPaywalled && result.priceUsd !== undefined) {
       setSelectedAsset(result);
       setPaymentModalOpen(true);
-    } else {
-      // Free content, navigate directly
-      router.push(`/asset/${encodeURIComponent(result.topicId)}`);
+      return;
     }
+    
+    // Otherwise, navigate to answer page
+    router.push(`/answer/${encodeURIComponent(result.topicId)}`);
   };
 
   const handlePayAndOpen = () => {
     if (selectedAsset) {
       setIsProcessingPayment(true);
-      // Navigate to asset page - payment will be handled there via x402
-      router.push(`/asset/${encodeURIComponent(selectedAsset.topicId)}`);
+      // Navigate to answer page - payment will be handled there via x402
+      router.push(`/answer/${encodeURIComponent(selectedAsset.topicId)}`);
       setPaymentModalOpen(false);
       setSelectedAsset(null);
       setIsProcessingPayment(false);
     }
   };
+
 
   return (
     <div className="flex flex-col h-svh">
@@ -170,12 +192,14 @@ export function Hero() {
                     <span className="ml-2 text-sm text-muted-foreground">Searching...</span>
                   </div>
                 ) : searchResults.length > 0 ? (
-                  searchResults.map((result) => (
+                  searchResults.map((result, index) => (
                     <button
-                      key={result.topicId}
+                      key={`${result.topicId}-${index}`}
                       onClick={() => handleSuggestionClick(result)}
                       className={`w-full text-left border rounded-2xl px-5 py-3 transition-all ${
-                        result.isPaywalled
+                        result.isSuggestion
+                          ? "bg-black/80 backdrop-blur-sm border-muted-foreground/30 hover:border-muted-foreground/50 hover:bg-black/90 hover:shadow-lg"
+                          : result.isPaywalled
                           ? "bg-black/95 backdrop-blur-sm border-primary/40 hover:border-primary hover:bg-primary/5 hover:shadow-lg hover:shadow-primary/20"
                           : "bg-black/90 backdrop-blur-sm hover:bg-black/95 border-input hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
                       }`}
@@ -187,6 +211,24 @@ export function Hero() {
                           </h4>
                         </div>
                         <div className="flex items-center gap-6 flex-shrink-0">
+                          {/* Badge for contribution type or suggestion */}
+                          {result.isSuggestion ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] uppercase font-mono px-2 py-1 rounded-md bg-muted-foreground/20 text-muted-foreground border border-muted-foreground/30">
+                                Not Verified
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] uppercase font-mono px-2 py-1 rounded-md ${
+                                result.contributionType === "User contributed"
+                                  ? "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"
+                                  : "bg-green-500/20 text-green-500 border border-green-500/30"
+                              }`}>
+                                {result.contributionType === "User contributed" ? "User Contributed" : "Regular"}
+                              </span>
+                            </div>
+                          )}
                           
                           {/* Price for Paywalled Content */}
                           {result.isPaywalled && result.priceUsd !== undefined && (

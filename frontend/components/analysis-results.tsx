@@ -24,6 +24,11 @@ interface AnalysisResult {
   analysis_id: string;
   topic: string;
   steps_completed: string[];
+  image_urls?: {
+    "similarity_heatmap.png"?: string;
+    "embedding_space.png"?: string;
+    "bias_compass.png"?: string;
+  };
   results: {
     fetch: {
       status: string;
@@ -571,6 +576,48 @@ export default function AnalysisResults({
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="mt-6">
+          {/* Analysis Images */}
+          {data.image_urls && Object.keys(data.image_urls).length > 0 && (
+            <div className="bg-black/90 backdrop-blur-sm border border-input rounded-2xl p-6 mb-6">
+              <h3 className="text-xl uppercase text-primary mb-6 flex items-center gap-2">
+                <Image className="h-5 w-5" />
+                Analysis Visualizations
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {data.image_urls["similarity_heatmap.png"] && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-mono text-muted-foreground uppercase">Similarity Heatmap</p>
+                    <img 
+                      src={data.image_urls["similarity_heatmap.png"]} 
+                      alt="Similarity Heatmap"
+                      className="w-full rounded-lg border border-input"
+                    />
+                  </div>
+                )}
+                {data.image_urls["embedding_space.png"] && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-mono text-muted-foreground uppercase">Embedding Space</p>
+                    <img 
+                      src={data.image_urls["embedding_space.png"]} 
+                      alt="Embedding Space"
+                      className="w-full rounded-lg border border-input"
+                    />
+                  </div>
+                )}
+                {data.image_urls["bias_compass.png"] && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-mono text-muted-foreground uppercase">Bias Compass</p>
+                    <img 
+                      src={data.image_urls["bias_compass.png"]} 
+                      alt="Bias Compass"
+                      className="w-full rounded-lg border border-input"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Fetch Stats */}
         {data.results?.fetch && (
