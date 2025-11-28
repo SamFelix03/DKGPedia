@@ -725,9 +725,20 @@ class SemanticDriftDetector:
             "section_titles_wiki": [s["title"] for s in wiki_sections]
         }
         
+        # Store full results for visualization (needed by visualize_embeddings method)
+        self._last_full_results = results
+        
+        # Return only the specified sections: topic_modeling, semantic_drift_score, claim_alignment, visualization
+        filtered_results = {
+            "topic_modeling": results.get("topic_modeling", {}),
+            "semantic_drift_score": results.get("semantic_drift_score", {}),
+            "claim_alignment": results.get("claim_alignment", {}),
+            "visualization": results.get("visualization", {})
+        }
+        
         print("\n✅ Semantic drift analysis complete!")
         
-        return results
+        return filtered_results
     
     def _calculate_drift_score(self, results: Dict) -> Dict:
         """Calculate overall semantic drift score"""
@@ -835,9 +846,12 @@ class SemanticDriftDetector:
         
         print(f"\n📊 Generating visualizations in {output_dir}/...")
         
+        # Use full results if available (for internal visualization), otherwise use provided results
+        full_results = getattr(self, '_last_full_results', results)
+        
         # 1. Cosine similarity heatmap
-        if "sentence_embeddings" in results:
-            similarity_matrix = np.array(results["sentence_embeddings"]["similarity_matrix"])
+        if "sentence_embeddings" in full_results:
+            similarity_matrix = np.array(full_results["sentence_embeddings"]["similarity_matrix"])
             
             plt.figure(figsize=(12, 10))
             sns.heatmap(
@@ -859,9 +873,9 @@ class SemanticDriftDetector:
             print("   ✅ Saved similarity_heatmap.png")
         
         # 2. t-SNE/UMAP visualization
-        if "visualization" in results:
-            grok_emb = np.array(results["visualization"]["sentence_embeddings_grok"])
-            wiki_emb = np.array(results["visualization"]["sentence_embeddings_wiki"])
+        if "visualization" in full_results:
+            grok_emb = np.array(full_results["visualization"]["sentence_embeddings_grok"])
+            wiki_emb = np.array(full_results["visualization"]["sentence_embeddings_wiki"])
             
             # Combine embeddings
             all_embeddings = np.vstack([grok_emb, wiki_emb])
@@ -885,8 +899,8 @@ class SemanticDriftDetector:
                        c='red', label='Wikipedia', alpha=0.6, s=100)
             
             # Add labels
-            grok_titles = results["visualization"]["section_titles_grok"]
-            wiki_titles = results["visualization"]["section_titles_wiki"]
+            grok_titles = full_results["visualization"]["section_titles_grok"]
+            wiki_titles = full_results["visualization"]["section_titles_wiki"]
             
             for i, title in enumerate(grok_titles[:10]):  # Limit to first 10
                 plt.annotate(f"G{i+1}", (embeddings_2d[i, 0], embeddings_2d[i, 1]), 
