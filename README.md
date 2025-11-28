@@ -128,6 +128,78 @@ The Trust Layer provides the economic and reputational mechanisms that incentivi
 
 ---
 
+## The DKGPedia Plugin
+
+The DKGPedia Plugin (`@dkg/plugin-dkgpedia`) is a custom plugin for the OriginTrail DKG Node that provides the core functionality for managing Community Notes - verified knowledge assets that serve as trusted sources for accurate, hallucination-free information.
+
+### Overview
+
+The plugin extends the DKG Node with:
+
+- **MCP Tools**: Enables AI agents to query and search Community Notes via Model Context Protocol
+- **REST API Endpoints**: Provides HTTP endpoints for querying, searching, and publishing Community Notes
+- **x402 Payment Integration**: Implements paywalled content access using the x402 protocol for monetizing user-contributed knowledge assets
+- **DKG Integration**: Seamlessly interacts with the OriginTrail Decentralized Knowledge Graph for storing and retrieving knowledge assets
+
+### Key Functionalities
+
+1. **Community Note Retrieval**: Query specific Community Notes by topic ID with full analysis results
+2. **Community Note Search**: Search Community Notes by keywords with pagination support
+3. **Community Note Publishing**: Publish new knowledge assets to the DKG with comprehensive analysis data
+4. **Payment Gating**: Automatically applies x402 payment middleware for user-contributed paywalled content
+5. **Remote Node Validation**: Ensures queries are made against remote DKG nodes, not local instances
+
+### JSON-LD Structure
+
+Community Notes are stored in the DKG as structured JSON-LD using the `dkgpedia` namespace (`https://dkgpedia.org/schema/`). The structure includes:
+
+#### Core Fields
+- `dkgpedia:topicId`: Unique topic identifier
+- `dkgpedia:name`: Title of the Community Note
+- `dkgpedia:dateCreated`: ISO 8601 timestamp
+- `dkgpedia:contributionType`: Either "regular" or "User contributed"
+- `dkgpedia:summary`: Brief summary extracted from analysis
+- `dkgpedia:primarySource`: Primary source file path
+- `dkgpedia:secondarySource`: Secondary source file path
+
+#### Analysis Results (Stored as JSON Strings)
+- `dkgpedia:analysisResult`: Complete analysis result object
+- `dkgpedia:fetchResults`: Source comparison data
+- `dkgpedia:tripleResults`: Knowledge graph triple extraction results
+- `dkgpedia:semanticDriftResults`: Semantic drift analysis
+- `dkgpedia:factCheckResults`: Fact-checking verification results
+- `dkgpedia:sentimentResults`: Sentiment and bias analysis
+- `dkgpedia:multimodalResults`: Image/video alignment analysis
+- `dkgpedia:judgingResults`: Comprehensive evaluation reports
+
+#### Metadata Fields
+- `dkgpedia:categoryMetrics`: Category-specific metrics (JSON string)
+- `dkgpedia:notableInstances`: Notable instances and examples (JSON string)
+- `dkgpedia:analysisId`: Unique analysis identifier
+- `dkgpedia:analysisStatus`: Analysis completion status
+- `dkgpedia:stepsCompleted`: Array of completed analysis steps (JSON string)
+- `dkgpedia:executionTimeSeconds`: Analysis execution time
+- `dkgpedia:analysisTimestamp`: Analysis completion timestamp
+- `dkgpedia:imageUrls`: URLs for analysis visualization images (JSON string)
+
+#### Payment Fields (User-Contributed Only)
+- `dkgpedia:walletAddress`: Contributor's wallet address for receiving payments
+- `dkgpedia:priceUsd`: Price in USD for accessing the content
+
+#### Retrieval Structure
+
+When retrieved from the DKG, Community Notes are returned with:
+- All core fields as clean strings
+- Parsed JSON objects for analysis results and metadata
+- Full asset details from the DKG SDK
+- Payment requirements (if applicable)
+
+**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts)
+
+For detailed documentation on all functionalities, tools, and API routes, see the [Plugin README](DKG-Node-With-Plugin/packages/plugin-dkgpedia/README.md).
+
+---
+
 ## How It All Works
 
 ### User Types and Workflows
