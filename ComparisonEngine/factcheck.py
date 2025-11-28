@@ -694,17 +694,32 @@ Analyze the web search results and provide a structured JSON response evaluating
         
         # Parse contradictions from results file
         print("🔍 Step 2/4: Parsing contradictions from triple.py results...")
-        contradictions = self._parse_contradictions_from_results(results_file)
+        all_contradictions = self._parse_contradictions_from_results(results_file)
         
-        if not contradictions:
+        if not all_contradictions:
             print("   ⚠️ No contradictions found. Make sure to run triple.py first!")
             return {
-                "summary": {"contradictions_found": 0},
+                "summary": {
+                    "total_contradictions": 0,
+                    "contradictions_checked": 0,
+                    "grok_claims_verified": 0,
+                    "wiki_claims_verified": 0
+                },
                 "contradictory_claims": {"total_pairs": 0, "pairs": []},
                 "metrics": {}
             }
         
-        print(f"   ✓ Found {len(contradictions)} contradictions to fact-check")
+        # Limit to first 10 contradictions for fact-checking
+        MAX_CONTRADICTIONS_TO_CHECK = 10
+        total_contradictions = len(all_contradictions)
+        contradictions = all_contradictions[:MAX_CONTRADICTIONS_TO_CHECK]
+        
+        if total_contradictions > MAX_CONTRADICTIONS_TO_CHECK:
+            print(f"   ✓ Found {total_contradictions} total contradictions")
+            print(f"   ⚠️ Limiting fact-checking to first {MAX_CONTRADICTIONS_TO_CHECK} contradictions")
+            print(f"   → Will fact-check {len(contradictions)} contradictions")
+        else:
+            print(f"   ✓ Found {len(contradictions)} contradictions to fact-check")
         print()
         
         # Find sentences and verify contradictions
@@ -824,7 +839,8 @@ Analyze the web search results and provide a structured JSON response evaluating
         # Build results
         results = {
             "summary": {
-                "total_contradictions": len(contradictions),
+                "total_contradictions": total_contradictions,
+                "contradictions_checked": len(contradictions),
                 "grok_claims_verified": len(grok_verifications),
                 "wiki_claims_verified": len(wiki_verifications)
             },
