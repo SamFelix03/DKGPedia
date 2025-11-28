@@ -1040,14 +1040,25 @@ class MultimodalAnalyzer:
                         "summary": media_metadata[i].get("summary", "")[:500] if i < len(media_metadata) else ""
                     }
                     for i in range(len(media_text_sims))
-                ],
-                "chunk_similarities": chunk_sims
+                ]
             }
+        }
+        
+        # Return only the specified sections: summary, textual_similarity, image_to_text_alignment,
+        # media_to_text_alignment, overall_multimedia_alignment, multimodal_consistency_index, detailed_results
+        filtered_results = {
+            "summary": results.get("summary", {}),
+            "textual_similarity": results.get("textual_similarity", {}),
+            "image_to_text_alignment": results.get("image_to_text_alignment", {}),
+            "media_to_text_alignment": results.get("media_to_text_alignment", {}),
+            "overall_multimedia_alignment": results.get("overall_multimedia_alignment", {}),
+            "multimodal_consistency_index": results.get("multimodal_consistency_index", {}),
+            "detailed_results": results.get("detailed_results", {})
         }
         
         print("[SUCCESS] Analysis complete!")
         
-        return results
+        return filtered_results
 
 
 def main():
