@@ -6,6 +6,82 @@ DKGPedia is a platform that leverages the OriginTrail Decentralized Knowledge Gr
 
 ---
 
+## Demo Instructions
+
+### To Contribute a Knowledge Asset
+
+If you want to contribute verified knowledge to the DKGPedia network:
+
+1. **Visit the Contribute Page**: Navigate to [https://dkgpedia.vercel.app/contribute](https://dkgpedia.vercel.app/contribute)
+
+2. **Enter Topic Information**: 
+   - Enter the topic you want to contribute to (e.g., "artificial-intelligence-2024")
+   - Fill in the suggested edit or correction you want to make
+   - Provide relevant sources that support your contribution
+
+3. **Submit for Analysis**: Click submit to trigger the comprehensive AI analysis
+
+4. **Wait for Processing**: 
+   - ⏱️ **AI Analysis**: Takes approximately **15-20 minutes** to complete
+   - ⏱️ **DKG Publishing**: Takes an additional **25+ minutes** to publish to the blockchain
+   - **Total Time**: Expect **40-45 minutes** for the entire process
+
+> **💡 Tip**: Due to the long processing time, we recommend trying the **Search** feature first instead of contributing. Searching for a term not available in the DKG triggers the "analyze-lite" workflow, which only performs content fetching and knowledge triple extraction. This takes significantly less time to publish and retrieve.
+
+---
+
+### To Search/Query Knowledge
+
+The fastest way to experience DKGPedia is through the search feature:
+
+1. **Visit DKGPedia**: Go to [https://dkgpedia.vercel.app](https://dkgpedia.vercel.app)
+
+2. **Enter Your Search Query**: Type your search term in the search bar (e.g., "Climate Change", "Quantum Computing")
+
+3. **View Recommendations**: 
+   - The search results will show **topics available in the DKG** with priority (these are verified, analyzed knowledge assets)
+   - After DKG results, you'll see **regular search terms** available in Grokipedia
+
+4. **Select a Topic**: Click on any result to view the knowledge asset
+
+#### What Happens Next Depends on the Topic Type:
+
+##### 🔓 **Free Topic (Available in DKG)**
+- The system fetches the verified knowledge asset from the DKG
+- Compares it against the Grokipedia result
+- Displays your **final corrected article** with verified information, free from hallucinations
+- Shows trust scores, analysis metrics, and source verification
+
+##### 💰 **Paid Topic (User-Contributed in DKG)**
+- The server returns a **402 Payment Required** response
+- You'll be prompted to pay the required amount (in USDC) to access the content
+- **To pay**: You need USDC on Base Sepolia testnet
+  - Claim free USDC from the faucet: [https://faucet.circle.com/](https://faucet.circle.com/)
+  - Connect your wallet and complete the payment
+- Once paid, you'll receive the full verified knowledge asset with all analysis data
+
+##### 🔍 **Topic Not Available in DKG**
+- The system performs a **partial analysis workflow** (analyze-lite):
+  - Fetches content from Grokipedia and Wikipedia
+  - Extracts knowledge graph triples
+  - Performs basic comparison and analysis
+- Stores the analysis data in the DKG (faster than full analysis)
+- Fetches the newly stored data
+- Combines it with Grokipedia content to provide you with **corrected, verified information**
+- This process is much faster than full contribution (typically 5-10 minutes)
+
+---
+
+### Quick Start Recommendation
+
+**For First-Time Users**: 
+1. Start with **Search** to see how DKGPedia works
+2. Try searching for a topic that might not be in the DKG to see the analyze-lite workflow
+3. If you find a paid topic, use the faucet to get test USDC and experience the payment flow
+4. Once familiar, consider contributing a full knowledge asset (remember: it takes 40-45 minutes!)
+
+---
+
 ## 📖 Table of Contents
 
 - [Introduction](#introduction)
@@ -70,11 +146,11 @@ The Agent Layer consists of AI agents that act as knowledge creators, verifiers,
   - `dkgpedia-get-community-note`: Retrieves Community Notes for specific topics
   - `dkgpedia-search-community-notes`: Searches Community Notes by keywords
   
-  **Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 281-608, 614-820)
+  **Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 281-608, 614-820)
 
 - **AI Analysis Pipeline**: The frontend triggers comprehensive AI analysis through the `/api/analyze` endpoint, which processes topics and generates detailed metrics
   
-  **Location**: [`frontend/app/api/analyze/route.ts`](frontend/app/api/analyze/route.ts)
+  **Location**: [`frontend/app/api/analyze/route.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/api/analyze/route.ts)
 
 - **Agent Integration**: The DKG Node's MCP server enables AI agents to query and publish knowledge assets seamlessly
 
@@ -90,11 +166,11 @@ The Knowledge Layer serves as the connective tissue of the ecosystem, storing al
   - SPARQL queries for retrieving knowledge assets
   - Asset creation and publishing via the DKG SDK
   
-  **Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 321-356, 880-915, 1399-1422)
+  **Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 321-356, 880-915, 1399-1422)
 
 - **Knowledge Asset Structure**: Community Notes are stored as structured JSON-LD with comprehensive metadata including analysis results, provenance, and trust scores
   
-  **Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1348-1383)
+  **Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1348-1383)
 
 
 
@@ -108,7 +184,7 @@ The Trust Layer provides the economic and reputational mechanisms that incentivi
 
 - **TRAC Token Staking**: Contributors stake TRAC tokens when publishing knowledge assets to the DKG, ensuring commitment and quality
   
-  **Location**: Asset creation with epochs configuration in [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1403-1407)
+  **Location**: Asset creation with epochs configuration in [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1403-1407)
 
 - **x402 Payment Protocol**: User-contributed assets can be monetized through the x402 protocol, enabling:
   - Verifiable, machine-to-machine micropayments
@@ -116,15 +192,15 @@ The Trust Layer provides the economic and reputational mechanisms that incentivi
   - Direct revenue to contributors
   
   **Location**: 
-  - Server-side implementation: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 236-266, 1034-1054)
-  - Client-side payment handling: [`frontend/app/asset/[topicId]/page.tsx`](frontend/app/asset/[topicId]/page.tsx) (lines 76-158)
+  - Server-side implementation: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 236-266, 1034-1054)
+  - Client-side payment handling: [`frontend/app/asset/[topicId]/page.tsx`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/asset/[topicId]/page.tsx) (lines 76-158)
 
 - **Trust Scores**: Analysis results include trust metrics such as:
   - Trust scores for knowledge assets
   - Verification scores and fabrication risk assessments
   - Provenance quality scores
   
-  **Location**: Analysis results structure in [`frontend/app/api/analyze/route.ts`](frontend/app/api/analyze/route.ts)
+  **Location**: Analysis results structure in [`frontend/app/api/analyze/route.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/api/analyze/route.ts)
 
 ---
 
@@ -194,9 +270,9 @@ When retrieved from the DKG, Community Notes are returned with:
 - Full asset details from the DKG SDK
 - Payment requirements (if applicable)
 
-**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts)
+**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts)
 
-For detailed documentation on all functionalities, tools, and API routes, see the [Plugin README](DKG-Node-With-Plugin/packages/plugin-dkgpedia/README.md).
+For detailed documentation on all functionalities, tools, and API routes, see the [Plugin README](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/README.md).
 
 ---
 
@@ -213,14 +289,11 @@ Contributors are users who create and publish knowledge assets to the DKG. Their
 - Enter topic information including:
   - Topic ID (e.g., "artificial-intelligence-2024")
   - Title
-  - Summary
-  - Trust Score (0-100)
-  - Primary and Secondary Sources
-  - Category Metrics (e.g., accuracy, citations, peer-reviews)
-  - Notable Instances (breakthroughs, applications, concerns)
+  - Suggested edit
+  - List of Sources
   - Payment Settings (wallet address and price in USD)
 
-**Location**: [`frontend/app/contribute/page.tsx`](frontend/app/contribute/page.tsx)
+**Location**: [`frontend/app/contribute/page.tsx`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/contribute/page.tsx)
 
 **Step 2: AI Analysis Trigger**
 - The contribution form submits data to `/api/dkgpedia/publish`
@@ -235,8 +308,8 @@ Contributors are users who create and publish knowledge assets to the DKG. Their
   - Judging: Comprehensive evaluation reports
 
 **Location**: 
-- Publish endpoint: [`frontend/app/api/dkgpedia/publish/route.ts`](frontend/app/api/dkgpedia/publish/route.ts)
-- Analysis endpoint: [`frontend/app/api/analyze/route.ts`](frontend/app/api/analyze/route.ts)
+- Publish endpoint: [`frontend/app/api/dkgpedia/publish/route.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/api/dkgpedia/publish/route.ts)
+- Analysis endpoint: [`frontend/app/api/analyze/route.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/api/analyze/route.ts)
 
 **Step 3: DKG Publishing**
 - Analysis results are packaged into a JSON-LD structure
@@ -247,7 +320,7 @@ Contributors are users who create and publish knowledge assets to the DKG. Their
 - Contributors stake TRAC tokens during the publishing process
 - A Unique Asset Locator (UAL) is returned upon successful publication
 
-**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1239-1443)
+**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1239-1443)
 
 **Step 4: Monetization (Optional)**
 - If the contribution type is "User contributed", the asset becomes paywalled
@@ -265,8 +338,8 @@ End users search for topics and retrieve verified information from the DKG.
 - Results are displayed with trust scores and pricing information
 
 **Location**: 
-- Search UI: [`frontend/components/hero.tsx`](frontend/components/hero.tsx) (lines 56-79)
-- Search API: [`frontend/app/api/dkgpedia/search/route.ts`](frontend/app/api/dkgpedia/search/route.ts)
+- Search UI: [`frontend/components/hero.tsx`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/components/hero.tsx) (lines 56-79)
+- Search API: [`frontend/app/api/dkgpedia/search/route.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/api/dkgpedia/search/route.ts)
 
 **Step 2: Asset Retrieval**
 - Users click on a search result to view the full knowledge asset
@@ -277,8 +350,8 @@ End users search for topics and retrieve verified information from the DKG.
   - Payment is processed through the x402 facilitator
 
 **Location**: 
-- Asset page: [`frontend/app/asset/[topicId]/page.tsx`](frontend/app/asset/[topicId]/page.tsx)
-- Query endpoint: [`frontend/app/api/dkgpedia/query/[topicId]/route.ts`](frontend/app/api/dkgpedia/query/[topicId]/route.ts)
+- Asset page: [`frontend/app/asset/[topicId]/page.tsx`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/asset/[topicId]/page.tsx)
+- Query endpoint: [`frontend/app/api/dkgpedia/query/[topicId]/route.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/api/dkgpedia/query/[topicId]/route.ts)
 
 **Step 3: Access & Verification**
 - Upon payment (if required), users receive:
@@ -297,7 +370,7 @@ AI agents can interact with the DKG through Model Context Protocol (MCP) tools:
 
 **Get Community Note Tool**:
 ```typescript
-// Location: DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 281-608)
+// Location: https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 281-608)
 mcp.registerTool("dkgpedia-get-community-note", {
   // Queries DKG using SPARQL
   // Returns full Community Note with analysis results
@@ -306,7 +379,7 @@ mcp.registerTool("dkgpedia-get-community-note", {
 
 **Search Community Notes Tool**:
 ```typescript
-// Location: DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 614-820)
+// Location: https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 614-820)
 mcp.registerTool("dkgpedia-search-community-notes", {
   // Searches DKG by keyword
   // Returns list of matching Community Notes
@@ -322,20 +395,20 @@ The plugin exposes REST endpoints for direct DKG interaction:
 - Applies x402 payment middleware if content is paywalled
 - Returns full asset data including analysis results
 
-**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 827-1068)
+**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 827-1068)
 
 **GET `/dkgpedia/community-notes`** (Search):
 - Searches Community Notes by keyword
 - Returns paginated results with metadata
 
-**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1074-1233)
+**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1074-1233)
 
 **POST `/dkgpedia/community-notes`** (Publish):
 - Publishes new Community Notes to the DKG
 - Validates user-contributed content requirements
 - Creates Knowledge Assets with comprehensive metadata
 
-**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1239-1443)
+**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1239-1443)
 
 #### 3. SPARQL Queries
 
@@ -356,14 +429,14 @@ ORDER BY DESC(?createdAt)
 LIMIT 1
 ```
 
-**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 321-356, 880-915)
+**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 321-356, 880-915)
 
 #### 4. Asset Creation
 
 Knowledge Assets are created using the DKG SDK:
 
 ```typescript
-// Location: DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 1399-1407)
+// Location: https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 1399-1407)
 const createAsset = await ctx.dkg.asset.create(wrapped, {
   epochsNum: 2,
   minimumNumberOfFinalizationConfirmations: 3,
@@ -381,7 +454,7 @@ The x402 protocol enables verifiable, machine-to-machine micropayments for gated
 When a user-contributed asset is requested, the system checks if payment is required and applies the x402 payment middleware:
 
 ```typescript
-// Location: DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 1034-1054)
+// Location: https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 1034-1054)
 if (isUserContributed && walletAddress && priceUsd) {
   const facilitatorUrl = "https://x402.org/facilitator" as Resource;
   
@@ -404,7 +477,7 @@ if (isUserContributed && walletAddress && priceUsd) {
 The middleware wraps the x402 payment verification:
 
 ```typescript
-// Location: DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 240-266)
+// Location: https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 240-266)
 function applyPaymentMiddleware(
   req: Request,
   res: Response,
@@ -437,7 +510,7 @@ function applyPaymentMiddleware(
 The system identifies paywalled content:
 
 ```typescript
-// Location: DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 231-234)
+// Location: https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts (lines 231-234)
 function isPaywalled(note: any): boolean {
   const contributionType = extractValue(note.contributionType || note.contribution_type);
   return contributionType === "User contributed" || contributionType === "user contributed";
@@ -450,7 +523,7 @@ function isPaywalled(note: any): boolean {
 The frontend uses a payment interceptor to handle x402 payment requirements:
 
 ```typescript
-// Location: frontend/app/asset/[topicId]/page.tsx (lines 85-87)
+// Location: https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/asset/[topicId]/page.tsx (lines 85-87)
 const apiClient = walletClient
   ? withPaymentInterceptor(baseApiClient, walletClient)
   : baseApiClient;
@@ -460,7 +533,7 @@ const apiClient = walletClient
 When a 402 Payment Required response is received, the client extracts payment information and initiates the payment flow:
 
 ```typescript
-// Location: frontend/app/asset/[topicId]/page.tsx (lines 102-158)
+// Location: https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/asset/[topicId]/page.tsx (lines 102-158)
 catch (fetchErr: any) {
   // Check if it's an x402 payment error
   if (fetchErr.response?.data?.error === "X-PAYMENT header is required" || 
@@ -511,7 +584,7 @@ The knowledge assets published to the DKG contain comprehensive analysis data st
 }
 ```
 
-**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1348-1383)
+**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1348-1383)
 
 #### Analysis Results Structure
 
@@ -748,7 +821,7 @@ The `analysisResult` field contains a comprehensive analysis object with the fol
 }
 ```
 
-**Location**: [`frontend/app/api/analyze/route.ts`](frontend/app/api/analyze/route.ts) (lines 4-1908)
+**Location**: [`frontend/app/api/analyze/route.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/frontend/app/api/analyze/route.ts) (lines 4-1908)
 
 #### Storage in DKG
 
@@ -770,7 +843,7 @@ The analysis results are stored in multiple formats for efficient querying:
    - `dkgpedia:executionTimeSeconds`
    - `dkgpedia:analysisTimestamp`
 
-**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1367-1382)
+**Location**: [`DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts`](https://github.com/SamFelix03/DKGPedia/tree/main/DKG-Node-With-Plugin/packages/plugin-dkgpedia/src/index.ts) (lines 1367-1382)
 
 This comprehensive data structure ensures that:
 - **Quick Queries**: Basic metadata can be retrieved without parsing large JSON objects
