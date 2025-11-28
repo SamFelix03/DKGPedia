@@ -10,7 +10,7 @@ interface MarkdownRendererProps {
 
 export default function MarkdownRenderer({ content, className = "" }: MarkdownRendererProps) {
   return (
-    <div className={`prose prose-invert prose-sm max-w-none ${className}`}>
+    <div className={`prose prose-invert prose-sm max-w-none ${className}`} style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -35,17 +35,17 @@ export default function MarkdownRenderer({ content, className = "" }: MarkdownRe
           ),
           // Paragraphs
           p: ({ node, ...props }) => (
-            <p className="text-base text-foreground mb-3 leading-relaxed" {...props} />
+            <p className="text-base text-foreground mb-3 leading-relaxed" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }} {...props} />
           ),
           // Lists
           ul: ({ node, ...props }) => (
-            <ul className="list-disc list-inside mb-4 space-y-2 text-base text-foreground ml-4" {...props} />
+            <ul className="list-disc list-inside mb-4 space-y-2 text-base text-foreground ml-4" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }} {...props} />
           ),
           ol: ({ node, ...props }) => (
-            <ol className="list-decimal list-inside mb-4 space-y-2 text-base text-foreground ml-4" {...props} />
+            <ol className="list-decimal list-inside mb-4 space-y-2 text-base text-foreground ml-4" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }} {...props} />
           ),
           li: ({ node, ...props }) => (
-            <li className="text-base text-foreground leading-relaxed" {...props} />
+            <li className="text-base text-foreground leading-relaxed" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }} {...props} />
           ),
           // Strong/Bold
           strong: ({ node, ...props }) => (
@@ -59,19 +59,19 @@ export default function MarkdownRenderer({ content, className = "" }: MarkdownRe
           code: ({ node, inline, ...props }: any) => {
             if (inline) {
               return (
-                <code className="bg-black/50 text-yellow-500 px-1.5 py-0.5 rounded text-sm font-mono border border-input" {...props} />
+                <code className="bg-black/50 text-yellow-500 px-1.5 py-0.5 rounded text-sm font-mono border border-input" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }} {...props} />
               );
             }
             return (
-              <code className="block bg-black/50 text-foreground p-4 rounded-lg text-sm font-mono border border-input overflow-x-auto mb-4" {...props} />
+              <code className="block bg-black/50 text-foreground p-4 rounded-lg text-sm font-mono border border-input overflow-x-auto mb-4" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }} {...props} />
             );
           },
           pre: ({ node, ...props }) => (
-            <pre className="bg-black/50 p-4 rounded-lg border border-input overflow-x-auto mb-4" {...props} />
+            <pre className="bg-black/50 p-4 rounded-lg border border-input overflow-x-auto mb-4" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }} {...props} />
           ),
           // Blockquote
           blockquote: ({ node, ...props }) => (
-            <blockquote className="border-l-4 border-yellow-500 pl-4 py-2 my-4 italic text-base text-muted-foreground" {...props} />
+            <blockquote className="border-l-4 border-yellow-500 pl-4 py-2 my-4 italic text-base text-muted-foreground" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }} {...props} />
           ),
           // Links
           a: ({ node, ...props }) => (
@@ -84,7 +84,7 @@ export default function MarkdownRenderer({ content, className = "" }: MarkdownRe
           // Tables
           table: ({ node, ...props }) => (
             <div className="overflow-x-auto my-4">
-              <table className="min-w-full border-collapse border border-input" {...props} />
+              <table className="min-w-full border-collapse border border-input" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }} {...props} />
             </div>
           ),
           thead: ({ node, ...props }) => (
@@ -97,10 +97,10 @@ export default function MarkdownRenderer({ content, className = "" }: MarkdownRe
             <tr className="border-b border-input" {...props} />
           ),
           th: ({ node, ...props }) => (
-            <th className="border border-input px-4 py-2 text-left text-base font-bold text-foreground font-mono" {...props} />
+            <th className="border border-input px-4 py-2 text-left text-base font-bold text-foreground font-mono" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }} {...props} />
           ),
           td: ({ node, ...props }) => (
-            <td className="border border-input px-4 py-2 text-base text-foreground" {...props} />
+            <td className="border border-input px-4 py-2 text-base text-foreground" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }} {...props} />
           ),
         }}
       >

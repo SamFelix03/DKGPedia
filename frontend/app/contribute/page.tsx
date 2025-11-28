@@ -520,9 +520,67 @@ export default function ContributePage() {
     }
   };
 
+  const handleFetchLastAnalysis = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    setAnalysisResult(null);
+    setProgressStatus(null);
+
+    try {
+      console.log("🔍 Fetching last analysis from progress endpoint...");
+      const response = await fetch("/api/analyze/progress");
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch progress");
+      }
+
+      const data = await response.json();
+      console.log("📥 Progress response:", JSON.stringify(data, null, 2));
+
+      // Check if we got completed analysis
+      if (data.status === "completed" || data.current_step === "completed" || (data.results && data.progress_percentage === 100)) {
+        console.log("✅ Found completed analysis!");
+        
+        // Transform the nested structure
+        const transformedData = {
+          status: data.status || "success",
+          analysis_id: data.analysis_id,
+          topic: data.results?.topic || data.topic,
+          steps_completed: data.results?.steps_completed || [],
+          results: data.results?.results || data.results,
+          errors: data.errors || [],
+          timestamp: data.timestamp,
+          execution_time_seconds: data.execution_time_seconds || 0,
+          image_urls: data.results?.image_urls || data.image_urls,
+        };
+        
+        setAnalysisResult(transformedData);
+      } else if (data.status === "in_progress" || (data.current_step && data.current_step !== "completed")) {
+        setError(`Analysis still in progress: ${data.current_step} (${data.progress_percentage}%)`);
+      } else if (data.status === "error" || data.errors?.length > 0) {
+        setError(data.errors?.[0] || "Analysis failed");
+      } else {
+        setError("No completed analysis found or unexpected response format");
+      }
+    } catch (err) {
+      console.error("❌ Error fetching last analysis:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch last analysis");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const pollProgress = async () => {
+    let isCompleted = false;
     const intervalId = setInterval(async () => {
+      if (isCompleted) {
+        console.log("⚠️ Already completed, skipping poll");
+        return;
+      }
+
       try {
+        console.log("📡 Polling /api/analyze/progress...");
         const response = await fetch("/api/analyze/progress");
         
         if (!response.ok) {
@@ -530,8 +588,33 @@ export default function ContributePage() {
         }
 
         const data = await response.json();
+        console.log("📥 Progress response:", JSON.stringify(data, null, 2));
 
-        if (data.status === "in_progress" || data.current_step) {
+        // Check for completion FIRST before checking in_progress
+        if (data.status === "completed" || data.current_step === "completed" || (data.results && data.progress_percentage === 100)) {
+          // Analysis complete - transform the structure to match AnalysisResult interface
+          console.log("✅ Analysis complete! Stopping polling.");
+          isCompleted = true;
+          clearInterval(intervalId);
+          setProgressStatus(null);
+          
+          // Transform the nested structure: data.results.results -> data.results
+          const transformedData = {
+            status: data.status || "success",
+            analysis_id: data.analysis_id,
+            topic: data.results?.topic || data.topic,
+            steps_completed: data.results?.steps_completed || [],
+            results: data.results?.results || data.results,
+            errors: data.errors || [],
+            timestamp: data.timestamp,
+            execution_time_seconds: data.execution_time_seconds || 0,
+            image_urls: data.results?.image_urls || data.image_urls,
+          };
+          
+          setAnalysisResult(transformedData);
+          setLoading(false);
+        } else if (data.status === "in_progress" || (data.current_step && data.current_step !== "completed")) {
+          console.log(`⏳ In progress: ${data.current_step} (${data.progress_percentage}%)`);
           setProgressStatus({
             current_step: data.current_step,
             step_number: data.step_number,
@@ -539,19 +622,19 @@ export default function ContributePage() {
             progress_percentage: data.progress_percentage,
             message: data.message,
           });
-        } else if (data.status === "success" || data.results) {
-          // Analysis complete
-          clearInterval(intervalId);
-          setProgressStatus(null);
-          setAnalysisResult(data);
-          setLoading(false);
         } else if (data.status === "error" || data.errors?.length > 0) {
+          console.log("❌ Analysis error:", data.errors?.[0]);
+          isCompleted = true;
           clearInterval(intervalId);
           setProgressStatus(null);
           setError(data.errors?.[0] || "Analysis failed");
           setLoading(false);
+        } else {
+          console.log("⚠️ Unexpected response format:", data);
         }
       } catch (err) {
+        console.error("❌ Error polling progress:", err);
+        isCompleted = true;
         clearInterval(intervalId);
         setProgressStatus(null);
         setError(err instanceof Error ? err.message : "Failed to fetch progress");
@@ -576,16 +659,8 @@ export default function ContributePage() {
     setSuccess(null);
 
     try {
-      // Extract topicId from analysis_id or generate a new one
-      // analysis_id format: "analysis_20251127_161539_Cattle" or "topic_<uuid>"
-      let topicId = analysisResult.analysis_id;
-      if (topicId.startsWith("analysis_")) {
-        // Extract the topic name from analysis_id and create topic_<uuid>
-        topicId = `topic_${uuidv4()}`;
-      } else if (!topicId.startsWith("topic_")) {
-        // If it doesn't start with topic_, add the prefix
-        topicId = `topic_${topicId}`;
-      }
+      // Generate a truly random UUID for topicId
+      const topicId = `topic_${uuidv4()}`;
 
       // Ensure all required data is included
       const payload = {
@@ -863,21 +938,39 @@ export default function ContributePage() {
               </div>
             )}
 
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary hover:bg-primary/90 text-black font-bold font-mono text-lg py-6"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                "🔍 Analyze Topic"
-              )}
-            </Button>
+            {/* Submit Buttons */}
+            <div className="flex gap-4">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="flex-1 bg-primary hover:bg-primary/90 text-black font-bold font-mono text-lg py-6"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  "🔍 Analyze Topic"
+                )}
+              </Button>
+              
+              <Button
+                type="button"
+                onClick={handleFetchLastAnalysis}
+                disabled={loading}
+                className="flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 border border-yellow-500/30 font-bold font-mono text-lg py-6"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Fetching...
+                  </>
+                ) : (
+                  "📥 Fetch Last Analysis"
+                )}
+              </Button>
+            </div>
           </form>
         ) : (
           <div className="space-y-6">

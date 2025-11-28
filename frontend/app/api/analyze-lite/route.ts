@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ANALYZE_LITE_API_URL = `${process.env.ANALYZE_API_URL}/analyze-lite`;
-const DKG_API_URL = process.env.NEXT_PUBLIC_DKG_API_URL || "http://localhost:9200";
 
 const dummyResponse = {
   "status": "success",
@@ -225,13 +224,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`Starting analyze-lite for topic: ${topic}`);
 
-    // Step 1: Call analyze-lite endpoint
+    // Step 1: Call analyze-lite endpoint with form data
+    const formData = new FormData();
+    formData.append("topic", topic);
+
     const analyzeResponse = await fetch(ANALYZE_LITE_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ topic }),
+      body: formData,
     });
 
     if (!analyzeResponse.ok) {
@@ -239,38 +238,8 @@ export async function POST(request: NextRequest) {
     }
 
     const analysisData = await analyzeResponse.json();
-    console.log(`Analysis completed for ${topic}`);
-
-    // Step 2: Automatically publish to DKG with Regular contribution type
-    try {
-      const publishPayload = {
-        topicId: topic,
-        title: topic,
-        contributionType: "Regular",
-        analysisResult: analysisData,
-      };
-
-      const publishResponse = await fetch(`${DKG_API_URL}/dkgpedia/community-notes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(publishPayload),
-      });
-
-      if (!publishResponse.ok) {
-        console.error(`Failed to publish to DKG: ${publishResponse.status}`);
-        // Don't fail the whole request if publishing fails
-      } else {
-        const publishData = await publishResponse.json();
-        console.log(`Successfully published ${topic} to DKG with UAL: ${publishData.ual}`);
-      }
-    } catch (publishError) {
-      console.error("Error publishing to DKG:", publishError);
-      // Continue even if publishing fails
-    }
-
-    // Return the analysis data
+    
+    // Return the analysis data immediately (frontend will handle polling and publishing)
     return NextResponse.json(analysisData, { status: 200 });
   } catch (error) {
     console.error("Analyze-lite error:", error);

@@ -1912,34 +1912,37 @@ const dummyResponse = {
     },
 }
 
-const ANALYZE_API_URL = process.env.ANALYZE_API_URL || "https://e2e96c275459.ngrok-free.app";
+const ANALYZE_API_URL = process.env.ANALYZE_API_URL || "https://db5a4d46576e.ngrok-free.app";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { topic, sources, topicId, suggestedEdit } = body;
+    const formData = await request.formData();
+    const topic = formData.get("topic")?.toString();
+    const sources = formData.getAll("sources").map(s => s.toString());
+    const suggestedEdit = formData.get("suggested_edit")?.toString();
 
-    // Ensure sources is an array
-    const sourcesArray = Array.isArray(sources) ? sources : [];
+    if (!topic) {
+      return NextResponse.json({ error: "Topic is required" }, { status: 400 });
+    }
 
-    // Prepare form data
-    const formData = new FormData();
-    formData.append("topic", topic || "Unknown Topic");
+    // Prepare form data for backend
+    const backendFormData = new FormData();
+    backendFormData.append("topic", topic);
     
     // Add each source as a separate form field
-    sourcesArray.forEach((source: string) => {
-      formData.append("sources", source);
+    sources.forEach((source: string) => {
+      backendFormData.append("sources", source);
     });
 
     // Add suggested edit if provided
     if (suggestedEdit) {
-      formData.append("suggested_edit", suggestedEdit);
+      backendFormData.append("suggested_edit", suggestedEdit);
     }
 
     // Call the real analyze endpoint
     const analyzeResponse = await fetch(`${ANALYZE_API_URL}/analyze`, {
       method: "POST",
-      body: formData,
+      body: backendFormData,
     });
 
     if (!analyzeResponse.ok) {
@@ -1948,13 +1951,12 @@ export async function POST(request: NextRequest) {
 
     const analysisData = await analyzeResponse.json();
 
-    // Add the topicId to the response for reference
+    // Add the topic to the response for reference
     const response = {
       ...analysisData,
       request_data: {
-        topicId,
         topic,
-        sources: sourcesArray,
+        sources,
         suggestedEdit,
       },
     };
