@@ -53,6 +53,7 @@ export default function AnswerPage() {
   } | null>(null);
   const [isFetching, setIsFetching] = useState(false); // Guard to prevent concurrent fetches
   const [hasPublished, setHasPublished] = useState(false); // Track if we've already published for this topicId
+  const [publishedUal, setPublishedUal] = useState<string | null>(null); // Store published UAL
 
   // Handle mounting and load from sessionStorage
   useEffect(() => {
@@ -316,6 +317,8 @@ export default function AnswerPage() {
                   const publishData = await publishResponse.json();
                   console.log(`✅ Successfully published to DKG with UAL: ${publishData.ual}, topicId: ${topicId} (attempt ${attempt})`);
                   setHasPublished(true); // Mark as published to prevent duplicates
+                  setPublishedUal(publishData.ual); // Store UAL for display
+                  setLoadingStep(`✅ Published to DKG! UAL: ${publishData.ual}`);
                   lastError = null;
                   break; // Success, exit retry loop
                 } catch (error) {
@@ -351,6 +354,7 @@ export default function AnswerPage() {
       console.log(`📄 Fetching Grokipedia article for topic: ${actualTopicName} (topicId: ${topicId})`);
 
       // Fetch Grokipedia article
+      setLoadingStep("Fetching Grokipedia article...");
       const grokResponse = await fetch("/api/grokipedia", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -363,6 +367,7 @@ export default function AnswerPage() {
 
       const grokData = await grokResponse.json();
       const grokContent = grokData.content_text || "";
+      setLoadingStep("Grokipedia article fetched. Generating corrected version...");
 
       // Generate corrected version using contradictions
       console.log(`🔧 Generating corrected version with ${contradictions.length} contradictions`);
@@ -380,6 +385,7 @@ export default function AnswerPage() {
       }
 
       const answerData = await answerResponse.json();
+      setLoadingStep("Corrected version generated. Finalizing...");
 
       setData({
         originalContent: grokContent,
@@ -458,12 +464,48 @@ export default function AnswerPage() {
                   )}
                 </div>
               )}
+              
+              {/* Show UAL and explorer link if published */}
+              {publishedUal && (
+                <div className="mt-6 p-4 bg-primary/10 border border-primary/30 rounded-lg w-full">
+                  <p className="text-sm font-mono text-primary mb-2 uppercase">Published to DKG</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-mono text-muted-foreground">UAL:</span>
+                    <a
+                      href={`https://dkg-testnet.origintrail.io/explore?ual=${encodeURIComponent(publishedUal)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-mono text-primary hover:text-primary/80 underline break-all"
+                    >
+                      {publishedUal}
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-black/90 backdrop-blur-sm border border-primary/30 rounded-2xl p-8">
               <div className="flex flex-col items-center justify-center gap-4">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="text-xl text-muted-foreground">{loadingStep}</p>
+                <p className="text-xl text-muted-foreground text-center">{loadingStep}</p>
+                
+                {/* Show UAL and explorer link if published */}
+                {publishedUal && (
+                  <div className="mt-4 p-4 bg-primary/10 border border-primary/30 rounded-lg w-full max-w-2xl">
+                    <p className="text-sm font-mono text-primary mb-2 uppercase">Published to DKG</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-mono text-muted-foreground">UAL:</span>
+                      <a
+                        href={`https://dkg-testnet.origintrail.io/explore?ual=${encodeURIComponent(publishedUal)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-mono text-primary hover:text-primary/80 underline break-all"
+                      >
+                        {publishedUal}
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -622,4 +664,3 @@ export default function AnswerPage() {
     </div>
   );
 }
-
