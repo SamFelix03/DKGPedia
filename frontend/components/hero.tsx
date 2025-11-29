@@ -42,19 +42,12 @@ export function Hero() {
   const [selectedAsset, setSelectedAsset] = useState<SearchResult | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  // Debounced search
+  // Clear results when search query is cleared
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
       setShowSuggestions(false);
-      return;
     }
-
-    const timer = setTimeout(() => {
-      performSearch();
-    }, 500); // 500ms debounce
-
-    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   const performSearch = async () => {
@@ -108,7 +101,8 @@ export function Hero() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       handleSearch();
     }
   };
@@ -182,6 +176,13 @@ export function Hero() {
                 </Button>
               </PromptInputActions>
             </PromptInput>
+            
+            {/* Hint text - only show when no search results */}
+            {!showSuggestions && searchQuery.trim() && (
+              <p className="text-xs text-muted-foreground font-mono mt-2 text-center w-full">
+                Press Enter to search
+              </p>
+            )}
             
             {/* Search Results - Scrollable with max 4 entries */}
             {showSuggestions && searchQuery.trim() && (
