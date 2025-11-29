@@ -50,7 +50,12 @@ export default function MarketplacePage() {
     }
   };
 
-  const filteredAssets = assets.filter((asset) => {
+  // Remove duplicates by topicId (keep first occurrence)
+  const uniqueAssets = assets.filter((asset, index, self) => 
+    index === self.findIndex((a) => a.topicId === asset.topicId)
+  );
+
+  const filteredAssets = uniqueAssets.filter((asset) => {
     if (activeTab === "user-contributed") {
       return asset.contributionType === "User contributed" || asset.isPaywalled;
     } else if (activeTab === "regular") {

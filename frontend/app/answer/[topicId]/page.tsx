@@ -23,9 +23,9 @@ interface AnswerData {
   topic: string;
 }
 
-// Base axios instance
-const baseApiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_DKG_API_URL || "http://localhost:9200",
+// Axios instance for Next.js API routes (relative URLs)
+const nextApiClient = axios.create({
+  baseURL: "", // Empty baseURL means relative to current origin
   headers: {
     "Content-Type": "application/json",
   },
@@ -180,19 +180,19 @@ export default function AnswerPage() {
 
       console.log("🔍 Fetching answer for topic:", topicId);
 
-      // Use payment-enabled client if wallet is connected
+      // Use Next.js API route with payment interceptor if wallet is connected
       const apiClient = walletClient 
-        ? withPaymentInterceptor(baseApiClient, walletClient)
-        : baseApiClient;
+        ? withPaymentInterceptor(nextApiClient, walletClient)
+        : nextApiClient;
 
       let dkgData = null;
       let analysisResult = null;
       let contradictions = [];
 
-      // Try to fetch from DKG with payment support
+      // Try to fetch from DKG with payment support via API route
       try {
         const dkgResponse = await apiClient.get(
-          `/dkgpedia/community-notes/${encodeURIComponent(topicId)}`
+          `/api/dkgpedia/query/${encodeURIComponent(topicId)}`
         );
         dkgData = dkgResponse.data;
         
@@ -205,7 +205,9 @@ export default function AnswerPage() {
         }
       } catch (dkgError: any) {
         // Check if it's a 402 Payment Required error
-        if (dkgError.response?.status === 402) {
+        if (dkgError.response?.status === 402 || 
+            dkgError.response?.data?.x402Version ||
+            dkgError.response?.data?.error === "X-PAYMENT header is required") {
           console.log("💳 Payment required for this asset");
           const paymentData = dkgError.response?.data;
           
@@ -260,7 +262,7 @@ export default function AnswerPage() {
             // Double-check if asset already exists in DKG before publishing
             try {
               const checkResponse = await apiClient.get(
-                `/dkgpedia/community-notes/${encodeURIComponent(topicId)}`
+                `/api/dkgpedia/query/${encodeURIComponent(topicId)}`
               );
               if (checkResponse.data.found) {
                 console.log("✓ Asset already exists in DKG, skipping publish");

@@ -49,9 +49,9 @@ interface AssetData {
   analysisResult?: AnalysisResult;
 }
 
-// Base axios instance
-const baseApiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_DKG_API_URL || "http://localhost:9200",
+// Axios instance for Next.js API routes (relative URLs)
+const nextApiClient = axios.create({
+  baseURL: "", // Empty baseURL means relative to current origin
   headers: {
     "Content-Type": "application/json",
   },
@@ -115,14 +115,14 @@ export default function AssetPage() {
 
       console.log("🔍 Querying topic:", topicId);
 
-      // If wallet is connected, use payment-enabled client directly
+      // Use Next.js API route with payment interceptor if wallet is connected
       const apiClient = walletClient 
-        ? withPaymentInterceptor(baseApiClient, walletClient)
-        : baseApiClient;
+        ? withPaymentInterceptor(nextApiClient, walletClient)
+        : nextApiClient;
 
       try {
         const response = await apiClient.get(
-          `/dkgpedia/community-notes/${encodeURIComponent(topicId)}`
+          `/api/dkgpedia/query/${encodeURIComponent(topicId)}`
         );
         
         console.log("✅ Query successful:", response.data);
@@ -134,45 +134,34 @@ export default function AssetPage() {
           setError(response.data.error || "Asset not found");
         }
       } catch (fetchErr: any) {
-        // Check if it's an x402 payment error
-        if (fetchErr.response?.data?.error === "X-PAYMENT header is required" || 
-            fetchErr.response?.data?.x402Version) {
+        // Check if it's a 402 Payment Required error
+        if (fetchErr.response?.status === 402 || 
+            fetchErr.response?.data?.x402Version ||
+            fetchErr.response?.data?.error === "X-PAYMENT header is required") {
           console.log("💰 Payment required for this asset");
           
           // Extract payment info from error response
-          const paymentInfo = fetchErr.response?.data?.accepts?.[0];
+          const paymentData = fetchErr.response?.data;
+          const paymentInfo = paymentData?.accepts?.[0] || paymentData;
           
-          if (walletClient) {
-            // Wallet is connected but we still got x402 error
-            // This shouldn't happen if payment interceptor is working, but handle it anyway
-            console.log("⚠️ Payment required but wallet client exists - payment may have failed");
-            setError("Payment required. Please try again or check your wallet connection.");
-          } else {
+          if (!walletConnected) {
             // No wallet connected, show payment screen
             setNeedsPayment(true);
-            // Set asset data from payment info if available
-            if (paymentInfo) {
-              // maxAmountRequired is in microdollars (e.g., 10000 = $1.00)
-              const priceInDollars = parseFloat(paymentInfo.maxAmountRequired) / 10000;
-              setAsset({
-                topicId,
-                summary: "",
-                found: false,
-                isPaywalled: true,
-                priceUsd: priceInDollars,
-                walletAddress: paymentInfo.payTo,
-                contributionType: "User contributed",
-              });
-            } else {
-              // Fallback: try to get basic asset info without payment
-              setAsset({
-                topicId,
-                summary: "",
-                found: false,
-                isPaywalled: true,
-                contributionType: "User contributed",
-              });
-            }
+            const priceInDollars = paymentInfo?.maxAmountRequired 
+              ? parseFloat(paymentInfo.maxAmountRequired) / 10000 
+              : 0;
+            setAsset({
+              topicId,
+              summary: "",
+              found: false,
+              isPaywalled: true,
+              priceUsd: priceInDollars,
+              walletAddress: paymentInfo?.payTo || paymentData?.walletAddress,
+              contributionType: "User contributed",
+            });
+          } else {
+            // Wallet connected but payment failed
+            setError("Payment required. Please try again or check your wallet connection.");
           }
         } else {
           // Other error
